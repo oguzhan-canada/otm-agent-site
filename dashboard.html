@@ -450,6 +450,14 @@
     </div>
   </div>
 
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">Pipeline Health</div>
+    <div id="pipeline-health" style="font-size:13px;color:var(--text2);line-height:1.8">Checking...</div>
+    <div class="note" style="margin-top:.75rem">
+      <strong>How this works:</strong> The watchdog checks the API observation date on every page load. If data is older than 3 days, it flags a warning. If older than 7 days, it flags critical. Cloud Schedulers run the pipeline daily at 02:00–04:00 UTC. If all three stages (ingest → signals → runner) succeed, the dashboard updates within minutes. The <a href="https://github.com/oguzhan-canada/otm-agent-site/actions/workflows/watchdog.yml" target="_blank" style="color:var(--accent)">GitHub Actions watchdog</a> runs daily at 14:00 UTC as a safety net — it auto-triggers recovery and opens an issue if data stays stale.
+    </div>
+  </div>
+
   <footer>
     <span>GCP: oil-tank-monitoring-123 · Sentinel-1 GRD IW VV via Google Earth Engine · Daily 02:00 UTC</span>
     <span id="data-note"></span>
@@ -926,8 +934,59 @@ async function init() {
     if (tanks.length > 0) selectTank(tanks[0].tank_id);
   }
   renderCorrelation(90);
+  renderPipelineHealth();
 }
 init();
+
+function renderPipelineHealth() {
+  const el = document.getElementById('pipeline-health');
+  if (!el || !snapshotData) return;
+  const obsDate = snapshotData.obs_date;
+  if (!obsDate) { el.innerHTML = 'No observation data available.'; return; }
+
+  const ageDays = Math.floor((Date.now() - new Date(obsDate + 'T00:00:00Z')) / 86400000);
+  const genAt = snapshotData.generated_at || '';
+
+  // Determine expected next observation (SAR revisit ~6 days)
+  const lastObs = new Date(obsDate + 'T00:00:00Z');
+  const nextExpected = new Date(lastObs.getTime() + 6 * 86400000);
+  const nextStr = nextExpected.toISOString().slice(0, 10);
+
+  // Scheduler info
+  const schedulers = [
+    { name: 'stage2-daily-ingest', time: '03:00 UTC', desc: 'SAR data ingestion' },
+    { name: 'otm-daily-trigger-dev', time: '02:00 UTC', desc: 'Daily runner' },
+    { name: 'stage3-daily-signals', time: '04:00 UTC', desc: 'Signal processing' },
+  ];
+
+  let statusIcon, statusText, statusColor;
+  if (ageDays <= 2) {
+    statusIcon = '🟢'; statusText = 'Healthy'; statusColor = 'var(--ok-text)';
+  } else if (ageDays <= 6) {
+    statusIcon = '🟡'; statusText = 'Normal gap (SAR revisit cycle)'; statusColor = 'var(--warn-text)';
+  } else if (ageDays <= 12) {
+    statusIcon = '🟠'; statusText = 'Extended gap — may need attention'; statusColor = 'var(--warn-text)';
+  } else {
+    statusIcon = '🔴'; statusText = 'Stale — pipeline likely broken'; statusColor = 'var(--err-text)';
+  }
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;margin-bottom:12px">
+      <div><span style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em">Status</span><br>
+        <span style="font-size:14px">${statusIcon}</span> <strong style="color:${statusColor}">${statusText}</strong></div>
+      <div><span style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em">Last observation</span><br>
+        <strong>${obsDate}</strong> <span style="color:var(--text3)">(${ageDays}d ago)</span></div>
+      <div><span style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em">Next expected</span><br>
+        ${nextStr} <span style="color:var(--text3)">(~6-day SAR revisit)</span></div>
+      <div><span style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em">API response</span><br>
+        ${genAt ? genAt.slice(0,19) : '—'}</div>
+    </div>
+    <div style="font-size:12px;color:var(--text3);border-top:1px solid var(--border);padding-top:8px">
+      <strong style="color:var(--text2)">Scheduled jobs:</strong>
+      ${schedulers.map(s => `<span style="margin-left:12px">${s.desc} <code style="font-size:11px;background:var(--bg3);padding:1px 5px;border-radius:3px">${s.time}</code></span>`).join(' ·')}
+      · <a href="https://github.com/oguzhan-canada/otm-agent-site/actions/workflows/watchdog.yml" target="_blank" style="color:var(--accent)">Watchdog</a> <code style="font-size:11px;background:var(--bg3);padding:1px 5px;border-radius:3px">14:00 UTC</code>
+    </div>`;
+}
 
 // Adaptive polling: slow down after repeated failures
 function schedulePoll() {

@@ -1,0 +1,243 @@
+name: Pipeline Watchdog
+
+on:
+  schedule:
+    - cron: "0 14 * * *"  # Daily at 14:00 UTC (after pipelines should have run at 02-06 UTC)
+  workflow_dispatch:       # Manual trigger
+
+permissions:
+  issues: write
+  contents: read
+
+env:
+  API_URL: "https://otm-api-dev-zdqsboxooa-nn.a.run.app"
+  STALE_WARN_DAYS: 3
+  STALE_CRIT_DAYS: 7
+  GCP_PROJECT: "oil-tank-monitoring-123"
+  GCP_REGION: "northamerica-northeast1"
+
+jobs:
+  check-freshness:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.check.outputs.status }}
+      age_days: ${{ steps.check.outputs.age_days }}
+      obs_date: ${{ steps.check.outputs.obs_date }}
+    steps:
+      - name: Query API freshness
+        id: check
+        run: |
+          set +e
+          RESPONSE=$(curl -sf --max-time 15 "$API_URL/data" 2>&1)
+          CURL_EXIT=$?
+
+          if [ $CURL_EXIT -ne 0 ]; then
+            echo "status=api_down" >> $GITHUB_OUTPUT
+            echo "age_days=-1" >> $GITHUB_OUTPUT
+            echo "obs_date=unknown" >> $GITHUB_OUTPUT
+            echo "::error::API unreachable (exit $CURL_EXIT): $RESPONSE"
+            exit 0
+          fi
+
+          OBS_DATE=$(echo "$RESPONSE" | jq -r '.obs_date // empty')
+          TANK_COUNT=$(echo "$RESPONSE" | jq '.tank_features | length')
+
+          if [ -z "$OBS_DATE" ]; then
+            echo "status=no_data" >> $GITHUB_OUTPUT
+            echo "age_days=-1" >> $GITHUB_OUTPUT
+            echo "obs_date=none" >> $GITHUB_OUTPUT
+            echo "::error::API returned no obs_date"
+            exit 0
+          fi
+
+          OBS_EPOCH=$(date -d "${OBS_DATE}T00:00:00Z" +%s)
+          NOW_EPOCH=$(date +%s)
+          AGE_DAYS=$(( (NOW_EPOCH - OBS_EPOCH) / 86400 ))
+
+          echo "obs_date=$OBS_DATE" >> $GITHUB_OUTPUT
+          echo "age_days=$AGE_DAYS" >> $GITHUB_OUTPUT
+
+          if [ $AGE_DAYS -ge $STALE_CRIT_DAYS ]; then
+            echo "status=critical" >> $GITHUB_OUTPUT
+            echo "::error::Data is $AGE_DAYS days old (critical)"
+          elif [ $AGE_DAYS -ge $STALE_WARN_DAYS ]; then
+            echo "status=stale" >> $GITHUB_OUTPUT
+            echo "::warning::Data is $AGE_DAYS days old (stale)"
+          else
+            echo "status=ok" >> $GITHUB_OUTPUT
+            echo "Data is $AGE_DAYS day(s) old — within threshold. Tanks: $TANK_COUNT"
+          fi
+
+  trigger-pipeline:
+    needs: check-freshness
+    if: needs.check-freshness.outputs.status == 'stale' || needs.check-freshness.outputs.status == 'critical'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Trigger SAR pipeline jobs
+        run: |
+          echo "🔄 Data is ${{ needs.check-freshness.outputs.age_days }} days old — triggering pipeline recovery"
+
+          # Stage 2: Ingest latest SAR data
+          echo "▸ Triggering stage2-ingest-job..."
+          gcloud run jobs execute stage2-ingest-job \
+            --project=$GCP_PROJECT \
+            --region=$GCP_REGION \
+            --async \
+            --quiet 2>&1 || echo "⚠ stage2 trigger failed"
+
+          # Wait for ingestion
+          echo "▸ Waiting 60s for ingestion..."
+          sleep 60
+
+          # Stage 3: Process signals
+          echo "▸ Triggering stage3-pipeline-job..."
+          gcloud run jobs execute stage3-pipeline-job \
+            --project=$GCP_PROJECT \
+            --region=$GCP_REGION \
+            --async \
+            --quiet 2>&1 || echo "⚠ stage3 trigger failed"
+
+          # Wait for processing
+          echo "▸ Waiting 30s for processing..."
+          sleep 30
+
+          # Daily runner: Update API cache
+          echo "▸ Triggering job-otm-daily-runner-dev..."
+          gcloud run jobs execute job-otm-daily-runner-dev \
+            --project=$GCP_PROJECT \
+            --region=$GCP_REGION \
+            --async \
+            --quiet 2>&1 || echo "⚠ daily-runner trigger failed"
+
+          echo "✅ Pipeline recovery triggered — data should refresh within ~10 minutes"
+
+  verify-recovery:
+    needs: [check-freshness, trigger-pipeline]
+    if: needs.check-freshness.outputs.status == 'stale' || needs.check-freshness.outputs.status == 'critical'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for pipeline completion
+        run: sleep 300  # 5 minutes
+
+      - name: Verify data refreshed
+        id: verify
+        run: |
+          RESPONSE=$(curl -sf --max-time 15 "$API_URL/data" 2>&1)
+          NEW_DATE=$(echo "$RESPONSE" | jq -r '.obs_date // empty')
+          OLD_DATE="${{ needs.check-freshness.outputs.obs_date }}"
+
+          if [ "$NEW_DATE" != "$OLD_DATE" ] && [ -n "$NEW_DATE" ]; then
+            echo "✅ Recovery successful — data updated from $OLD_DATE to $NEW_DATE"
+            echo "recovered=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠ Data still shows $NEW_DATE (unchanged from $OLD_DATE)"
+            echo "recovered=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Annotate result
+        if: steps.verify.outputs.recovered == 'false'
+        run: echo "::warning::Pipeline recovery did not produce new data — manual investigation needed"
+
+  alert-critical:
+    needs: [check-freshness, verify-recovery]
+    if: |
+      always() &&
+      (needs.check-freshness.outputs.status == 'critical' ||
+       needs.check-freshness.outputs.status == 'api_down')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for existing issue
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OPEN=$(gh issue list \
+            --repo ${{ github.repository }} \
+            --label "pipeline-alert" \
+            --state open \
+            --json number \
+            --jq 'length')
+          echo "open_count=$OPEN" >> $GITHUB_OUTPUT
+
+      - name: Open alert issue
+        if: steps.existing.outputs.open_count == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          STATUS="${{ needs.check-freshness.outputs.status }}"
+          AGE="${{ needs.check-freshness.outputs.age_days }}"
+          OBS="${{ needs.check-freshness.outputs.obs_date }}"
+
+          if [ "$STATUS" = "api_down" ]; then
+            TITLE="🔴 Pipeline Alert: API unreachable"
+            BODY="The OTM API at \`$API_URL\` is not responding.
+
+          **Diagnostics:**
+          - Status: API unreachable
+          - Last known observation: unknown
+          - Watchdog run: $(date -u +'%Y-%m-%d %H:%M UTC')
+
+          **Recovery steps:**
+          1. Check [Cloud Run service logs](https://console.cloud.google.com/run/detail/$GCP_REGION/otm-api-dev/logs?project=$GCP_PROJECT)
+          2. Verify service is deployed: \`gcloud run services describe otm-api-dev --project=$GCP_PROJECT --region=$GCP_REGION\`
+          3. Check for billing/quota issues in GCP Console"
+          else
+            TITLE="🔴 Pipeline Alert: Data is ${AGE} days stale (since ${OBS})"
+            BODY="The OTM dashboard data has not been refreshed in **${AGE} days**.
+          Last observation: \`${OBS}\`
+
+          The watchdog attempted automatic recovery but data may still be stale.
+
+          **Diagnostics:**
+          - Check [Cloud Run Jobs](https://console.cloud.google.com/run/jobs?project=$GCP_PROJECT) for recent failures
+          - Check [Cloud Scheduler](https://console.cloud.google.com/cloudscheduler?project=$GCP_PROJECT) — schedulers may not be firing
+          - Test API directly: \`curl $API_URL/data | jq .obs_date\`
+
+          **Manual recovery:**
+          \`\`\`bash
+          gcloud run jobs execute stage2-ingest-job --project=$GCP_PROJECT --region=$GCP_REGION
+          sleep 60
+          gcloud run jobs execute stage3-pipeline-job --project=$GCP_PROJECT --region=$GCP_REGION
+          sleep 30
+          gcloud run jobs execute job-otm-daily-runner-dev --project=$GCP_PROJECT --region=$GCP_REGION
+          \`\`\`
+
+          This issue will auto-close when the watchdog detects fresh data."
+          fi
+
+          gh issue create \
+            --repo ${{ github.repository }} \
+            --title "$TITLE" \
+            --body "$BODY" \
+            --label "pipeline-alert"
+
+  auto-close-resolved:
+    needs: check-freshness
+    if: needs.check-freshness.outputs.status == 'ok'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close resolved alerts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUES=$(gh issue list \
+            --repo ${{ github.repository }} \
+            --label "pipeline-alert" \
+            --state open \
+            --json number \
+            --jq '.[].number')
+
+          for NUM in $ISSUES; do
+            gh issue close $NUM \
+              --repo ${{ github.repository }} \
+              --comment "✅ Auto-resolved: Pipeline data is now fresh (obs_date: ${{ needs.check-freshness.outputs.obs_date }})"
+            echo "Closed issue #$NUM"
+          done
