@@ -265,6 +265,128 @@
     border-top: 1px solid var(--border); padding-top: 1.25rem;
     display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px;
   }
+
+  /* ── Agent Chat Widget ── */
+  .chat-fab {
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, #0066CC, #4d9fff);
+    border: none; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,102,204,0.35);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(0,102,204,0.45); }
+  .chat-fab svg { width: 26px; height: 26px; fill: #fff; }
+  .chat-fab .chat-badge {
+    position: absolute; top: -2px; right: -2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #3a7a00; border: 2px solid var(--bg);
+  }
+
+  .chat-panel {
+    position: fixed; bottom: 92px; right: 24px; z-index: 9998;
+    width: 380px; max-height: 520px;
+    background: var(--bg); border: 1px solid var(--border2);
+    border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    display: none; flex-direction: column; overflow: hidden;
+  }
+  .chat-panel.open { display: flex; }
+  @media(max-width:480px) {
+    .chat-panel { left: 8px; right: 8px; bottom: 88px; width: auto; max-height: 70vh; }
+  }
+
+  .chat-header {
+    padding: 14px 16px; background: linear-gradient(135deg, #0066CC, #4d9fff);
+    color: #fff; display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0;
+  }
+  .chat-header-icon { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
+  .chat-header-icon svg { width: 16px; height: 16px; fill: #fff; }
+  .chat-header-title { font-size: 14px; font-weight: 600; }
+  .chat-header-sub { font-size: 11px; opacity: 0.8; }
+  .chat-close {
+    margin-left: auto; background: none; border: none; color: #fff;
+    font-size: 20px; cursor: pointer; opacity: 0.7; padding: 4px;
+  }
+  .chat-close:hover { opacity: 1; }
+
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 12px;
+    min-height: 200px;
+  }
+
+  .chat-msg {
+    max-width: 85%; padding: 10px 14px;
+    font-size: 13px; line-height: 1.5;
+    border-radius: 14px; word-break: break-word;
+  }
+  .chat-msg.bot {
+    align-self: flex-start;
+    background: var(--bg3); color: var(--text);
+    border-bottom-left-radius: 4px;
+  }
+  .chat-msg.user {
+    align-self: flex-end;
+    background: #0066CC; color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .chat-msg.system {
+    align-self: center; text-align: center;
+    font-size: 11px; color: var(--text3);
+    background: none; padding: 4px 8px;
+  }
+
+  .chat-typing {
+    align-self: flex-start; display: none;
+    gap: 4px; padding: 10px 14px;
+    background: var(--bg3); border-radius: 14px;
+    border-bottom-left-radius: 4px;
+  }
+  .chat-typing.active { display: flex; }
+  .chat-typing span {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--text3); animation: chatBounce 1.2s infinite;
+  }
+  .chat-typing span:nth-child(2) { animation-delay: 0.2s; }
+  .chat-typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes chatBounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
+  }
+
+  .chat-input-area {
+    padding: 12px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px; flex-shrink: 0;
+  }
+  .chat-input {
+    flex: 1; padding: 9px 14px; border-radius: 20px;
+    border: 1px solid var(--border2); background: var(--bg2);
+    color: var(--text); font-size: 13px; font-family: 'Inter', sans-serif;
+    outline: none; resize: none;
+  }
+  .chat-input:focus { border-color: var(--accent); }
+  .chat-send {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #0066CC; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: background .15s;
+  }
+  .chat-send:hover { background: #0055aa; }
+  .chat-send:disabled { background: var(--border2); cursor: default; }
+  .chat-send svg { width: 16px; height: 16px; fill: #fff; }
+
+  .chat-suggestions {
+    display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px;
+  }
+  .chat-sug-btn {
+    font-size: 11.5px; padding: 6px 12px; border-radius: 16px;
+    border: 1px solid var(--border2); background: var(--bg2);
+    color: var(--text2); cursor: pointer; font-family: 'Inter', sans-serif;
+    transition: background .1s, color .1s;
+  }
+  .chat-sug-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -1205,6 +1327,346 @@ function schedulePoll() {
   }, interval);
 }
 schedulePoll();
+
+// ── Agent Chat Widget ──────────────────────────────────────
+const AGENT_API_URLS = [
+  "https://otm-agent-chat-zdqsboxooa-nn.a.run.app",
+  "https://otm-agent-chat-481921676964.northamerica-northeast1.run.app"
+];
+let agentApiBase = AGENT_API_URLS[0];
+let chatSessionId = localStorage.getItem('otm-chat-session') || crypto.randomUUID().slice(0, 12);
+localStorage.setItem('otm-chat-session', chatSessionId);
+let chatHistory = JSON.parse(localStorage.getItem('otm-chat-history') || '[]');
+
+const SUGGESTED_QUESTIONS = [
+  "What's the latest fill at Cushing?",
+  "Any anomalies this week?",
+  "Compare Rotterdam vs Fujairah",
+  "How does oil price relate to tank levels?",
+  "Which tanks show the most change?"
+];
+
+function initChat() {
+  // Inject chat HTML into the page
+  const chatHTML = `
+  <button class="chat-fab" id="chat-fab" onclick="toggleChat()" title="Ask OTM Agent">
+    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/><path d="M7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
+    <span class="chat-badge"></span>
+  </button>
+  <div class="chat-panel" id="chat-panel">
+    <div class="chat-header">
+      <div class="chat-header-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+      </div>
+      <div>
+        <div class="chat-header-title">OTM Agent</div>
+        <div class="chat-header-sub">AI-powered oil tank analyst</div>
+      </div>
+      <button class="chat-close" onclick="toggleChat()">&times;</button>
+    </div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-typing" id="chat-typing"><span></span><span></span><span></span></div>
+    <div class="chat-suggestions" id="chat-suggestions"></div>
+    <div class="chat-input-area">
+      <input class="chat-input" id="chat-input" type="text"
+             placeholder="Ask about oil tank data..."
+             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}" />
+      <button class="chat-send" id="chat-send" onclick="sendChat()">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', chatHTML);
+
+  // Render history or welcome
+  if (chatHistory.length > 0) {
+    chatHistory.forEach(m => appendChatMessage(m.role, m.text, false));
+  } else {
+    appendChatMessage('bot', "👋 Hi! I'm the **OTM Agent** — I can answer questions about oil tank fill levels, anomalies, regional trends, and radar signals across all 4 monitored hubs.\n\nTry one of the suggestions below, or ask anything!", false);
+  }
+  renderSuggestions();
+  scrollChatBottom();
+}
+
+function toggleChat() {
+  const panel = document.getElementById('chat-panel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    document.getElementById('chat-input').focus();
+    scrollChatBottom();
+  }
+}
+
+function appendChatMessage(role, text, save = true) {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role}`;
+  // Simple markdown-like formatting for bot messages
+  if (role === 'bot') {
+    div.innerHTML = text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+  } else {
+    div.textContent = text;
+  }
+  container.appendChild(div);
+  if (save) {
+    chatHistory.push({ role, text });
+    // Keep last 50 messages
+    if (chatHistory.length > 50) chatHistory = chatHistory.slice(-50);
+    localStorage.setItem('otm-chat-history', JSON.stringify(chatHistory));
+  }
+}
+
+function renderSuggestions() {
+  const container = document.getElementById('chat-suggestions');
+  if (!container) return;
+  if (chatHistory.filter(m => m.role === 'user').length >= 2) {
+    container.style.display = 'none';
+    return;
+  }
+  container.innerHTML = SUGGESTED_QUESTIONS.map(q =>
+    `<button class="chat-sug-btn" onclick="askSuggestion('${q.replace(/'/g, "\\'")}')">${q}</button>`
+  ).join('');
+}
+
+function askSuggestion(q) {
+  document.getElementById('chat-input').value = q;
+  sendChat();
+}
+
+function scrollChatBottom() {
+  const msgs = document.getElementById('chat-messages');
+  if (msgs) msgs.scrollTop = msgs.scrollHeight;
+}
+
+// Build context from currently loaded dashboard data
+function buildDashboardContext() {
+  if (!snapshotData) return {};
+  const ctx = {
+    obs_date: snapshotData.obs_date,
+    tank_count: (snapshotData.tank_features || []).length,
+    regions: {},
+  };
+  // Summarise per-region
+  (snapshotData.region_signal || []).forEach(r => {
+    ctx.regions[r.region_code] = {
+      avg_fill: r.avg_fill_proxy,
+      min_fill: r.min_fill_proxy,
+      max_fill: r.max_fill_proxy,
+      tanks: r.tank_count,
+    };
+  });
+  // Per-tank summary
+  ctx.tanks = (snapshotData.curated || []).map(t => ({
+    id: t.tank_id, region: t.region_code,
+    fill: t.fill_proxy, zscore: t.vv_zscore,
+    anomaly: t.is_anomaly, delta: t.delta_vv,
+  }));
+  return ctx;
+}
+
+// Smart local responses using dashboard data
+function tryLocalAnswer(query) {
+  const q = query.toLowerCase();
+  const data = snapshotData;
+  if (!data) return null;
+
+  const curated = data.curated || [];
+  const regions = data.region_signal || [];
+  const tankFeatures = data.tank_features || [];
+
+  // Latest fill / status queries
+  if (q.includes('latest') || q.includes('current') || q.includes('status') || q.includes('fill')) {
+    if (q.includes('cushing') || q.includes('rotterdam') || q.includes('fujairah') || q.includes('singapore')) {
+      const regionKey = q.includes('cushing') ? 'cushing' : q.includes('rotterdam') ? 'rotterdam' : q.includes('fujairah') ? 'fujairah' : 'singapore';
+      const rData = regions.find(r => r.region_code === regionKey);
+      const rTanks = curated.filter(t => t.region_code === regionKey);
+      if (rData) {
+        let resp = `📊 **${regionKey.charAt(0).toUpperCase() + regionKey.slice(1)}** as of ${data.obs_date}:\n\n`;
+        resp += `• Average fill: **${rData.avg_fill_proxy != null ? Math.round(rData.avg_fill_proxy) + '%' : 'N/A'}**\n`;
+        resp += `• Range: ${rData.min_fill_proxy != null ? Math.round(rData.min_fill_proxy) : '?'}% – ${rData.max_fill_proxy != null ? Math.round(rData.max_fill_proxy) : '?'}%\n`;
+        resp += `• Tanks: ${rData.tank_count || rTanks.length}\n\n`;
+        rTanks.forEach(t => {
+          const fill = t.fill_proxy != null ? Math.round(t.fill_proxy) + '%' : 'N/A';
+          const flag = t.is_anomaly ? ' ⚠' : '';
+          resp += `  **${t.tank_id}**: ${fill}${flag}\n`;
+        });
+        return resp;
+      }
+    }
+    // General status
+    let resp = `📊 **Dashboard Summary** — ${data.obs_date}\n\n`;
+    resp += `${curated.length} tanks across ${regions.length} hubs:\n\n`;
+    regions.forEach(r => {
+      const fill = r.avg_fill_proxy != null ? Math.round(r.avg_fill_proxy) + '%' : 'N/A';
+      resp += `• **${r.region_code}**: avg fill ${fill} (${r.tank_count} tanks)\n`;
+    });
+    const anomalies = curated.filter(t => t.is_anomaly);
+    if (anomalies.length > 0) {
+      resp += `\n⚠ **${anomalies.length} anomalies**: ${anomalies.map(t => t.tank_id).join(', ')}`;
+    } else {
+      resp += `\n✅ No anomalies detected`;
+    }
+    return resp;
+  }
+
+  // Anomaly queries
+  if (q.includes('anomal') || q.includes('unusual') || q.includes('alert') || q.includes('warning')) {
+    const anomalies = curated.filter(t => t.is_anomaly);
+    if (anomalies.length === 0) {
+      return `✅ **No anomalies detected** as of ${data.obs_date}. All ${curated.length} tanks are within normal statistical bounds (|z-score| < 2.0).`;
+    }
+    let resp = `⚠ **${anomalies.length} anomal${anomalies.length === 1 ? 'y' : 'ies'}** detected as of ${data.obs_date}:\n\n`;
+    anomalies.forEach(t => {
+      const fill = t.fill_proxy != null ? Math.round(t.fill_proxy) + '%' : 'N/A';
+      resp += `• **${t.tank_id}** (${t.region_code}): fill ${fill}, z-score ${t.vv_zscore != null ? t.vv_zscore.toFixed(2) : 'N/A'}, Δ ${t.delta_vv != null ? t.delta_vv.toFixed(2) : 'N/A'} dB\n`;
+    });
+    resp += `\n_Anomaly = |z-score| > 2.0 — a statistically unusual change vs baseline, not necessarily a problem._`;
+    return resp;
+  }
+
+  // Compare regions
+  if (q.includes('compare') || q.includes('vs') || q.includes('versus') || q.includes('difference')) {
+    let resp = `📊 **Regional Comparison** — ${data.obs_date}\n\n`;
+    resp += `| Region | Avg Fill | Tanks | Range |\n`;
+    resp += `|--------|----------|-------|-------|\n`;
+    regions.forEach(r => {
+      const fill = r.avg_fill_proxy != null ? Math.round(r.avg_fill_proxy) + '%' : 'N/A';
+      const range = `${r.min_fill_proxy != null ? Math.round(r.min_fill_proxy) : '?'}–${r.max_fill_proxy != null ? Math.round(r.max_fill_proxy) : '?'}%`;
+      resp += `| **${r.region_code}** | ${fill} | ${r.tank_count} | ${range} |\n`;
+    });
+    return resp;
+  }
+
+  // Oil price / correlation
+  if (q.includes('oil price') || q.includes('wti') || q.includes('crude') || q.includes('correlat')) {
+    return `📈 **Oil Price & Tank Signals**\n\nThe Daily Trend chart (scroll up) overlays WTI crude prices on per-tank fill signals. Key observations:\n\n• SAR-based fill estimates measure **physical tank levels** via radar backscatter\n• WTI prices reflect **market expectations** of supply/demand\n• Correlation is indirect — rising prices may precede drawdowns (selling stored oil), while falling prices may lead to builds (storing cheap oil)\n• Check the **Correlation** tab above for time-series and scatter-plot analysis\n\n_The relationship varies by region — Cushing (US benchmark hub) tends to show stronger price-fill correlation than overseas hubs._`;
+  }
+
+  // Tank-specific query
+  const tankMatch = q.match(/([a-z]{3}_[a-z]{2}_t\d{2})/);
+  if (tankMatch) {
+    const tankId = tankMatch[1];
+    const tank = curated.find(t => t.tank_id === tankId);
+    const tf = tankFeatures.find(t => t.tank_id === tankId);
+    if (tank) {
+      let resp = `🛢️ **${tankId}** — ${data.obs_date}\n\n`;
+      resp += `• Fill proxy: **${tank.fill_proxy != null ? Math.round(tank.fill_proxy) + '%' : 'N/A'}**\n`;
+      resp += `• Z-score: ${tank.vv_zscore != null ? tank.vv_zscore.toFixed(2) : 'N/A'}`;
+      resp += tank.is_anomaly ? ' ⚠ anomaly' : ' (normal)';
+      resp += `\n• Delta VV: ${tank.delta_vv != null ? tank.delta_vv.toFixed(3) : 'N/A'} dB\n`;
+      resp += `• Baseline weeks: ${tank.baseline_weeks || 'N/A'}\n`;
+      if (tf) {
+        resp += `• Mean VV: ${tf.mean_vv != null ? tf.mean_vv.toFixed(2) : 'N/A'} dB\n`;
+        resp += `• VV range: ${tf.min_vv != null ? tf.min_vv.toFixed(2) : '?'} to ${tf.max_vv != null ? tf.max_vv.toFixed(2) : '?'} dB\n`;
+      }
+      return resp;
+    }
+  }
+
+  // Which tanks changed the most
+  if (q.includes('change') || q.includes('most') || q.includes('biggest') || q.includes('moved')) {
+    const sorted = [...curated].filter(t => t.delta_vv != null).sort((a, b) => Math.abs(b.delta_vv) - Math.abs(a.delta_vv));
+    if (sorted.length === 0) return null;
+    let resp = `📉 **Biggest signal changes** — ${data.obs_date}\n\n`;
+    sorted.slice(0, 5).forEach((t, i) => {
+      const dir = t.delta_vv > 0 ? '↑' : '↓';
+      const fill = t.fill_proxy != null ? Math.round(t.fill_proxy) + '%' : 'N/A';
+      resp += `${i + 1}. **${t.tank_id}** (${t.region_code}): ${dir} ${Math.abs(t.delta_vv).toFixed(3)} dB — fill ${fill}${t.is_anomaly ? ' ⚠' : ''}\n`;
+    });
+    return resp;
+  }
+
+  return null; // Fall through to agent API
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const query = input.value.trim();
+  if (!query) return;
+
+  input.value = '';
+  appendChatMessage('user', query);
+  scrollChatBottom();
+
+  // Hide suggestions after first user message
+  const sugContainer = document.getElementById('chat-suggestions');
+  if (sugContainer) sugContainer.style.display = 'none';
+
+  // Try local answer first
+  const localAnswer = tryLocalAnswer(query);
+  if (localAnswer) {
+    appendChatMessage('bot', localAnswer);
+    scrollChatBottom();
+    return;
+  }
+
+  // Show typing indicator
+  const typing = document.getElementById('chat-typing');
+  typing.classList.add('active');
+  scrollChatBottom();
+
+  // Try agent API
+  let responded = false;
+  for (const url of AGENT_API_URLS) {
+    try {
+      const res = await fetch(`${url}/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, session_id: chatSessionId }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        typing.classList.remove('active');
+        appendChatMessage('bot', data.response);
+        scrollChatBottom();
+        responded = true;
+        agentApiBase = url;
+        break;
+      }
+      if (res.status === 429) {
+        typing.classList.remove('active');
+        appendChatMessage('bot', "⏳ Rate limit reached — please wait a minute and try again.");
+        scrollChatBottom();
+        responded = true;
+        break;
+      }
+    } catch (e) { /* try next URL */ }
+  }
+
+  if (!responded) {
+    typing.classList.remove('active');
+    // Provide a helpful local-only fallback
+    const ctx = buildDashboardContext();
+    let fallback = "🤖 The agent API isn't available right now, but I can still help with data that's loaded on this page.\n\n";
+    fallback += "Try asking about:\n";
+    fallback += "• **Latest fill levels** at any region\n";
+    fallback += "• **Anomalies** or unusual readings\n";
+    fallback += "• **Compare regions** side by side\n";
+    fallback += "• A specific tank like **cus_ok_t01**\n";
+    fallback += "• **Which tanks changed** the most\n\n";
+    fallback += "_These work offline using live dashboard data._";
+    appendChatMessage('bot', fallback);
+    scrollChatBottom();
+  }
+}
+
+// Clear chat history button (accessible via console: clearChatHistory())
+function clearChatHistory() {
+  chatHistory = [];
+  localStorage.removeItem('otm-chat-history');
+  const msgs = document.getElementById('chat-messages');
+  if (msgs) msgs.innerHTML = '';
+  appendChatMessage('bot', "👋 Chat cleared! Ask me anything about the oil tank data.", false);
+  renderSuggestions();
+  const sugContainer = document.getElementById('chat-suggestions');
+  if (sugContainer) sugContainer.style.display = '';
+}
+
+// Init chat widget
+initChat();
 </script>
 </body>
 </html>
