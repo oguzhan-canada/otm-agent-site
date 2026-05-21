@@ -417,8 +417,8 @@
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
         <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;flex-shrink:0">Badge guide</div>
         <div class="legend-item" style="margin-bottom:0"><div class="legend-sw" style="background:#3a7a00"></div>Above-average fill (est. &gt;60%)</div>
-        <div class="legend-item" style="margin-bottom:0"><div class="legend-sw" style="background:#0d9e75"></div>Near baseline fill (40–60%)</div>
-        <div class="legend-item" style="margin-bottom:0"><div class="legend-sw" style="background:#0066CC"></div>Below-average fill (est. &lt;40%)</div>
+        <div class="legend-item" style="margin-bottom:0"><div class="legend-sw" style="background:#c47a00"></div>Near baseline fill (40–60%)</div>
+        <div class="legend-item" style="margin-bottom:0"><div class="legend-sw" style="background:#cc2222"></div>Below-average fill (est. &lt;40%)</div>
       </div>
     </div>
   </div>
@@ -535,7 +535,7 @@ function barColor(cur) {
   if (!cur) return '#c47a00';
   if (cur.is_anomaly) return '#cc2222';
   if (cur.fill_proxy === null) return '#c47a00';
-  return cur.fill_proxy > 0.6 ? '#3a7a00' : cur.fill_proxy < 0.4 ? '#0066CC' : '#0d9e75';
+  return cur.fill_proxy > 0.6 ? '#3a7a00' : cur.fill_proxy < 0.4 ? '#cc2222' : '#c47a00';
 }
 function badgeHtml(cur) {
   if (!cur) return '<span class="badge badge-ins">building</span>';
