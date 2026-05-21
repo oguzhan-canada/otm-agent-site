@@ -533,13 +533,12 @@ function vvToPct(vv) {
 }
 function barColor(cur) {
   if (!cur) return '#c47a00';
-  if (cur.is_anomaly) return '#cc2222';
   if (cur.fill_proxy === null) return '#c47a00';
   return cur.fill_proxy > 0.6 ? '#3a7a00' : cur.fill_proxy < 0.4 ? '#cc2222' : '#c47a00';
 }
 function badgeHtml(cur) {
   if (!cur) return '<span class="badge badge-ins">building</span>';
-  if (cur.is_anomaly) return '<span class="badge badge-anom">anomaly</span>';
+  if (cur.fill_proxy !== null && cur.is_anomaly) return `<span class="badge badge-anom">${Math.round(cur.fill_proxy*100)}% ⚠</span>`;
   if (cur.fill_proxy !== null) return `<span class="badge badge-ok">${Math.round(cur.fill_proxy*100)}%</span>`;
   return '<span class="badge badge-ins">building</span>';
 }
