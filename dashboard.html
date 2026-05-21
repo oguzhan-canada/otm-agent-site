@@ -627,10 +627,12 @@ function renderSnapshot(data) {
     const dbLabel = meanVv !== null ? meanVv.toFixed(1) : (r.mean_vv !== null && r.mean_vv !== undefined ? r.mean_vv.toFixed(1) : '\u2014');
     const estLabel = fillProxy !== null ? Math.round(fillProxy * 100) + '%' : (meanVv !== null ? Math.round(vvToPct(meanVv)) + '%*' : '\u2014');
     const pct = fillProxy !== null ? Math.max(4, Math.round(fillProxy * 100)) : (meanVv !== null ? vvToPct(meanVv).toFixed(1) : 0);
+    const pctNum = parseFloat(pct);
+    const gaugeColor = pctNum > 60 ? '#3a7a00' : pctNum < 40 ? '#cc2222' : '#c47a00';
     const imgCount = r.image_count || (showSignal ? '' : '?');
     return `<div class="region-row">
       <span class="region-name">${code}</span>
-      <div class="gauge-wrap"><div class="gauge-fill" style="width:${pct}%;background:${RCOL[code]||'#888'}"></div></div>
+      <div class="gauge-wrap"><div class="gauge-fill" style="width:${pct}%;background:${gaugeColor}"></div></div>
       <span class="region-val">${dbLabel} dB</span>
       <span class="region-pct">${estLabel}</span>
       <span class="region-imgs">${imgCount ? imgCount + ' imgs' : '\u2014'}</span>
