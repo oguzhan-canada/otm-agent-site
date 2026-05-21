@@ -753,7 +753,7 @@ function drawTrend(tankId) {
     .map(h => ({
       x: h.obs_date,
       db: h.mean_vv !== null ? parseFloat(h.mean_vv.toFixed(2)) : null,
-      pct: h.fill_proxy !== null ? Math.round(h.fill_proxy * 100) : null,
+      pct: h.fill_proxy !== null ? Math.round(h.fill_proxy * 100) : (h.mean_vv !== null ? Math.round(vvToPct(h.mean_vv)) : null),
     }));
 
   // Build WTI price data points for the same date range
@@ -1134,8 +1134,8 @@ async function renderCorrelation(days) {
 })();
 
 async function init() {
-  // Load 90 days of history to cover the correlation chart range
-  await Promise.all([loadSnapshot(), loadHistory(90)]);
+  // Load history + oil prices in parallel before drawing anything
+  await Promise.all([loadSnapshot(), loadHistory(90), fetchOilPrices(365)]);
   if (!selectedTank && snapshotData && snapshotData.tank_features) {
     const tanks = dedupBy(snapshotData.tank_features, 'tank_id');
     if (tanks.length > 0) selectTank(tanks[0].tank_id);
