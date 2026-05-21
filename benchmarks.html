@@ -34,16 +34,40 @@
   <h1>Evaluation Benchmarks</h1>
   <p class="subtitle">8 domain-specific benchmarks for evaluating commodity intelligence agents, with 5 baselines ranging from a scheduled rule-based system to an oracle with perfect foresight.</p>
 
+  <div class="section-label">Live results (loaded from JSON)</div>
+  <div class="metric-grid" id="live-metrics">
+    <div class="metric">
+      <div class="metric-label">Persona Divergence</div>
+      <div class="metric-value" id="m-persona">—</div>
+      <div class="metric-sub" id="m-persona-ci"></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Skill Pass Rate</div>
+      <div class="metric-value" id="m-skill">—</div>
+      <div class="metric-sub" id="m-skill-ci"></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Memory Utility</div>
+      <div class="metric-value" id="m-mem">—</div>
+      <div class="metric-sub" id="m-mem-ci"></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">OOS Dir. Accuracy</div>
+      <div class="metric-value" id="m-oos">—</div>
+      <div class="metric-sub" id="m-oos-ci"></div>
+    </div>
+  </div>
+
   <h2>Benchmark Suite Overview</h2>
   <table>
     <thead>
       <tr><th>#</th><th>Benchmark</th><th>n</th><th>Primary Metric</th><th>Status</th><th>Cadence</th></tr>
     </thead>
     <tbody>
-      <tr><td>1</td><td><strong>OTM-Persona-Align</strong></td><td>100</td><td>alignment_score</td><td><span class="badge badge-amber">v1.0 target</span></td><td>Weekly</td></tr>
-      <tr><td>2</td><td><strong>OTM-Skill-Retention</strong></td><td>20</td><td>pass_rate</td><td><span class="badge badge-amber">v1.0 target</span></td><td>Weekly</td></tr>
-      <tr><td>3</td><td><strong>OTM-Mem-Utility</strong></td><td>500</td><td>memory_utility</td><td><span class="badge badge-amber">v1.0 target</span></td><td>Bi-weekly</td></tr>
-      <tr><td>4</td><td><strong>OTM-OOS-Replay</strong></td><td>1</td><td>cumulative_pnl</td><td><span class="badge badge-amber">v1.0 target</span></td><td>Monthly</td></tr>
+      <tr><td>1</td><td><strong>OTM-Persona-Align</strong></td><td id="t-persona-n">—</td><td>response_divergence_cosine</td><td><span class="badge badge-green">live</span></td><td>Weekly</td></tr>
+      <tr><td>2</td><td><strong>OTM-Skill-Retention</strong></td><td id="t-skill-n">—</td><td>pass_rate</td><td><span class="badge badge-green">live</span></td><td>Weekly</td></tr>
+      <tr><td>3</td><td><strong>OTM-Mem-Utility</strong></td><td id="t-mem-n">—</td><td>memory_utility</td><td><span class="badge badge-green">live</span></td><td>Bi-weekly</td></tr>
+      <tr><td>4</td><td><strong>OTM-OOS-Replay</strong></td><td id="t-oos-n">—</td><td>directional_accuracy</td><td><span class="badge badge-green">live</span></td><td>Monthly</td></tr>
       <tr><td>5</td><td>OTM-LongCtx</td><td>200</td><td>accuracy</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
       <tr><td>6</td><td>OTM-MultiTurn-Persona</td><td>100</td><td>persona_convergence</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
       <tr><td>7</td><td>OTM-DistShift</td><td>50</td><td>robustness_score</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
@@ -172,6 +196,46 @@ function toggleTheme() {
   const saved = localStorage.getItem('theme');
   if (saved) document.documentElement.setAttribute('data-theme', saved);
 })();
+
+async function loadBenchmarkData() {
+  const benchmarks = [
+    { file: 'data/otm_persona_align.json', mId: 'm-persona', ciId: 'm-persona-ci', nId: 't-persona-n' },
+    { file: 'data/otm_skill_retention.json', mId: 'm-skill', ciId: 'm-skill-ci', nId: 't-skill-n' },
+    { file: 'data/otm_mem_utility.json', mId: 'm-mem', ciId: 'm-mem-ci', nId: 't-mem-n' },
+    { file: 'data/otm_oos_replay.json', mId: 'm-oos', ciId: 'm-oos-ci', nId: 't-oos-n' },
+  ];
+
+  for (const b of benchmarks) {
+    try {
+      const resp = await fetch(b.file);
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      const p = data.metrics.primary;
+      const el = document.getElementById(b.mId);
+      const ciEl = document.getElementById(b.ciId);
+      const nEl = document.getElementById(b.nId);
+
+      if (el) {
+        if (p.name === 'pass_rate' || p.name === 'directional_accuracy') {
+          el.textContent = (p.value * 100).toFixed(1) + '%';
+        } else {
+          el.textContent = p.value.toFixed(3);
+        }
+      }
+      if (ciEl) {
+        if (p.name === 'pass_rate' || p.name === 'directional_accuracy') {
+          ciEl.textContent = `CI: [${(p.ci_low*100).toFixed(1)}%, ${(p.ci_high*100).toFixed(1)}%]  n=${p.n}`;
+        } else {
+          ciEl.textContent = `CI: [${p.ci_low.toFixed(3)}, ${p.ci_high.toFixed(3)}]  n=${p.n}`;
+        }
+      }
+      if (nEl) nEl.textContent = p.n;
+    } catch (e) {
+      console.warn('Failed to load', b.file, e);
+    }
+  }
+}
+loadBenchmarkData();
 </script>
 </body>
 </html>

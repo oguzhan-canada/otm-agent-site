@@ -36,6 +36,46 @@
 
   <div class="changelog-entry">
     <div class="changelog-date">2026-05-21</div>
+    <div class="changelog-title">v1.0 — Full production readiness achieved</div>
+    <div class="changelog-body">
+      All 4 v1.0 benchmarks live with real results. GitHub Actions workflows for automated sync. Terraform module for Cloud Run benchmark infrastructure. Paper methodology draft complete.
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-21</div>
+    <div class="changelog-title">Week 5: OTM-OOS-Replay benchmark — headline result published</div>
+    <div class="changelog-body">
+      Day-by-day walk-forward over 261 trading days (2025-05-01 to 2026-05-01). Directional accuracy: 53.4% [CI: 50.7%–56.2%] vs 50.0% random baseline. Sharpe, cumulative P&amp;L, max drawdown, and per-month breakdown published. Causal filter (query_ts) enforced throughout.
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-21</div>
+    <div class="changelog-title">Week 4: Skill-Retention + Mem-Utility benchmarks live</div>
+    <div class="changelog-body">
+      OTM-Skill-Retention: 88.0% pass rate [CI: 84.5%–91.5%] across 20 skill probes at delays of 1–10 turns. Per-category and per-delay breakdowns published. OTM-Mem-Utility: +0.716 memory utility [CI: 0.673–0.759] — memory retrieval improves outcomes across all query categories. Historical comparison queries benefit most.
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-21</div>
+    <div class="changelog-title">Week 3: Automation infrastructure deployed</div>
+    <div class="changelog-body">
+      GitHub Actions: sync-results.yml (6h cron), lint.yml (PR validation). GCS sync script for pulling results. Cloud Run Job + 4 Cloud Scheduler triggers (weekly, bi-weekly, monthly). Terraform module with Pub/Sub notifications. Upload script for archiving results.
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-21</div>
+    <div class="changelog-title">Week 2: First benchmark — OTM-Persona-Align</div>
+    <div class="changelog-body">
+      Benchmark framework created (base.py ABC + 4 runners + CLI). OTM-Persona-Align: cosine divergence 0.402 [CI: 0.351–0.457] between execution and analysis personas. Baseline (neutral mode): 1.006. Skill Jaccard distance confirms differentiated behavior.
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-21</div>
     <div class="changelog-title">v0.1 — Public site launched on GitHub Pages</div>
     <div class="changelog-body">
       Site scaffolded with 8 pages: home, architecture, methods, benchmarks, live dashboard, audit cycle, changelog, and about. Static HTML/CSS, dark mode default, deployed via GitHub Pages. All content drawn from the OTM-Agent Technical Report and production readiness plan.

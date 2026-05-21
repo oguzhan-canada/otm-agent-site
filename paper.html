@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paper Methodology — OTM-Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTM<span>-Agent</span></a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="methods.html">Methods</a>
+      <a href="benchmarks.html">Benchmarks</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="audit.html">Audit</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="about.html">About</a>
+    </div>
+    <div class="nav-right">
+      <a href="https://github.com/oguzhan-canada/otm-agent-site" style="color:var(--text3);font-size:13px">GitHub</a>
+      <button class="theme-toggle" onclick="toggleTheme()">☀/☾</button>
+    </div>
+  </div>
+</nav>
+
+<div class="page">
+  <h1>Paper: Evaluation Methodology</h1>
+  <p class="subtitle">Draft methodology section for the OTM-Agent technical paper. Covers experimental design, benchmark protocols, statistical methods, and reproducibility.</p>
+
+  <h2>1. Experimental Design</h2>
+
+  <h3>1.1 Out-of-Sample Protocol</h3>
+  <p>All evaluation uses a strict temporal holdout. The cutoff date (May 1, 2025) was chosen because every underlying model was trained exclusively on pre-2025 data. The 12+ month holdout ensures that no headline number can be inflated by data leakage.</p>
+  <p>Enforcement operates at three levels:</p>
+  <ol style="color:var(--text2);padding-left:1.5rem;margin-bottom:1.5rem">
+    <li><strong>Static analysis (CI-blocking)</strong> — AST parsing of all Python and SQL files catches training-table queries without date filters at build time</li>
+    <li><strong>Runtime enforcement</strong> — <code>TrainingBQClient</code> wrapper raises <code>OOSLeakageError</code> on dynamically constructed queries</li>
+    <li><strong>Causal filtering</strong> — <code>query_ts</code> parameter threading prevents memory retrieval from accessing future information during replay</li>
+  </ol>
+
+  <h3>1.2 Reproducibility</h3>
+  <p>All random operations use <code>random_state=42</code> across 22 model constructors. Benchmark runners accept explicit seed lists (default: [42, 43, 44, 45, 46]) for multi-seed evaluation. Bootstrap CIs use <code>n_bootstrap=10,000</code> with seed 42.</p>
+  <p>Model version is tagged as <code>v0.2.0-oos-clean</code> — the version trained from scratch after the OOS audit.</p>
+
+  <h2>2. Benchmark Protocols</h2>
+
+  <h3>2.1 OTM-Persona-Align (n=50 queries × 5 seeds = 250 samples)</h3>
+  <p><strong>Protocol:</strong> Each query is run twice — once with persona seeded to <code>execution_oriented</code>, once to <code>analysis_oriented</code>. For each pair, we compute:</p>
+  <ul style="color:var(--text2);padding-left:1.5rem;margin-bottom:1rem">
+    <li><strong>Cosine distance</strong> between 64-d response embeddings (higher = more different)</li>
+    <li><strong>Jaccard distance</strong> between skill sets invoked (higher = more different)</li>
+  </ul>
+  <p><strong>Baseline:</strong> Two runs with neutral (50/50) persona — expected near-zero divergence.</p>
+  <p><strong>Result:</strong> Cosine divergence = <span id="paper-persona-val">—</span> [CI: <span id="paper-persona-ci">—</span>]. Baseline: <span id="paper-persona-bl">—</span>.</p>
+
+  <h3>2.2 OTM-Skill-Retention (n=20 probes × 4 delays × 5 seeds)</h3>
+  <p><strong>Protocol:</strong> Each of 20 skills has canonical (query, expected_skill) probes. Probes are administered at delays of 1, 3, 5, and 10 turns after the skill was last used. Pass = correct skill invoked.</p>
+  <p><strong>Baseline:</strong> Random selection from 20 skills → 5% expected pass rate.</p>
+  <p><strong>Result:</strong> Overall pass rate = <span id="paper-skill-val">—</span> [CI: <span id="paper-skill-ci">—</span>].</p>
+
+  <h3>2.3 OTM-Mem-Utility (n=500 queries × 5 seeds)</h3>
+  <p><strong>Protocol:</strong> Counterfactual design. 500 queries across 5 categories (historical comparison, pattern recognition, factual domain, real-time, reasoning) run with and without memory retrieval. LLM-as-judge (blind, 0–5 scale) rates both responses.</p>
+  <p><strong>Primary metric:</strong> Memory utility = mean(with_memory) − mean(without_memory).</p>
+  <p><strong>Result:</strong> Utility = <span id="paper-mem-val">—</span> [CI: <span id="paper-mem-ci">—</span>]. Historical comparison queries show highest utility; real-time queries show lowest.</p>
+
+  <h3>2.4 OTM-OOS-Replay (261 trading days)</h3>
+  <p><strong>Protocol:</strong> Walk day-by-day through 2025-05-01 to 2026-05-01. For each day <em>t</em>:</p>
+  <ol style="color:var(--text2);padding-left:1.5rem;margin-bottom:1rem">
+    <li>Set <code>query_ts = t</code> (causal filter active)</li>
+    <li>Ask agent: "What is the call for tomorrow?"</li>
+    <li>Record direction (long/short) and confidence</li>
+    <li>Compare against actual next-day price movement</li>
+  </ol>
+  <p><strong>Primary metric:</strong> Directional accuracy (not Sharpe). Sharpe is secondary.</p>
+  <p><strong>Baselines:</strong> Random coin flip (50.0%), majority class (52.9%).</p>
+  <p><strong>Result:</strong> Directional accuracy = <span id="paper-oos-val">—</span> [CI: <span id="paper-oos-ci">—</span>].</p>
+
+  <h2>3. Statistical Methods</h2>
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Application</th><th>Parameters</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Bootstrap CI</td><td>All primary metrics</td><td>n=10,000, seed=42, 95% CI</td></tr>
+      <tr><td>Wilcoxon signed-rank</td><td>Pairwise benchmark comparisons</td><td>p &lt; 0.05</td></tr>
+      <tr><td>Walk-forward validation</td><td>ML models (regime, spread, EIA)</td><td>min_train=15, expanding window</td></tr>
+      <tr><td>Cosine + Jaccard distance</td><td>Persona alignment</td><td>64-d embeddings, skill set overlap</td></tr>
+      <tr><td>LLM-as-judge</td><td>Memory utility</td><td>Sonnet, blind 0–5 rating</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4. Honest Reporting</h2>
+  <p>All results are published as they emerge, including negative findings:</p>
+  <ul style="color:var(--text2);padding-left:1.5rem;margin-bottom:1.5rem">
+    <li>Initial backtest Sharpe of −0.10 is reported with full root cause analysis</li>
+    <li>Spread forecaster and EIA surprise predictor show only marginal improvement (1–2 pp) over random baselines — acknowledged as difficult to distinguish from noise</li>
+    <li>OOS replay directional accuracy is modest — reported exactly as measured</li>
+    <li>The audit finding of 20+ unfiltered queries is published with full narrative</li>
+  </ul>
+
+  <h2>5. Limitations</h2>
+  <ul style="color:var(--text2);padding-left:1.5rem;margin-bottom:1.5rem">
+    <li>Benchmark runners currently use simulated agent responses; production integration pending</li>
+    <li>LLM-as-judge scoring is simulated; production uses actual Sonnet evaluation</li>
+    <li>OOS replay uses simulated price data; production reads from BigQuery WTI prices</li>
+    <li>Sample sizes for some benchmarks may be insufficient for definitive conclusions</li>
+    <li>Persona alignment measures differentiation, not quality — different responses could both be poor</li>
+    <li>Memory utility is measured in controlled conditions; real-world memory is populated over time</li>
+  </ul>
+
+  <h2>6. Reproducibility Checklist</h2>
+  <table>
+    <thead>
+      <tr><th>Item</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Code publicly available</td><td><span class="badge badge-green">Yes</span></td></tr>
+      <tr><td>Random seeds documented</td><td><span class="badge badge-green">Yes</span> — [42,43,44,45,46]</td></tr>
+      <tr><td>Bootstrap parameters</td><td><span class="badge badge-green">Yes</span> — n=10,000, seed=42</td></tr>
+      <tr><td>Model version tagged</td><td><span class="badge badge-green">Yes</span> — v0.2.0-oos-clean</td></tr>
+      <tr><td>OOS cutoff documented</td><td><span class="badge badge-green">Yes</span> — 2025-05-01</td></tr>
+      <tr><td>Benchmark JSON schema</td><td><span class="badge badge-green">Yes</span> — common schema</td></tr>
+      <tr><td>Negative results reported</td><td><span class="badge badge-green">Yes</span> — Sharpe −0.10</td></tr>
+      <tr><td>Limitations section</td><td><span class="badge badge-green">Yes</span></td></tr>
+    </tbody>
+  </table>
+
+</div>
+
+<footer>
+  <span>OTM-Agent · Paper Methodology Draft</span>
+  <span>Last updated: 2026-05-21</span>
+</footer>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+  localStorage.setItem('theme', html.getAttribute('data-theme'));
+}
+(function() {
+  const saved = localStorage.getItem('theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+})();
+
+async function loadPaperMetrics() {
+  const items = [
+    { f:'data/otm_persona_align.json', v:'paper-persona-val', c:'paper-persona-ci', b:'paper-persona-bl', pct:false },
+    { f:'data/otm_skill_retention.json', v:'paper-skill-val', c:'paper-skill-ci', b:null, pct:true },
+    { f:'data/otm_mem_utility.json', v:'paper-mem-val', c:'paper-mem-ci', b:null, pct:false },
+    { f:'data/otm_oos_replay.json', v:'paper-oos-val', c:'paper-oos-ci', b:null, pct:true },
+  ];
+  for (const it of items) {
+    try {
+      const r = await fetch(it.f); if (!r.ok) continue;
+      const d = await r.json(); const p = d.metrics.primary;
+      const valEl = document.getElementById(it.v);
+      const ciEl = document.getElementById(it.c);
+      const blEl = it.b ? document.getElementById(it.b) : null;
+      if (valEl) valEl.textContent = it.pct ? (p.value*100).toFixed(1)+'%' : p.value.toFixed(3);
+      if (ciEl) ciEl.textContent = it.pct
+        ? `${(p.ci_low*100).toFixed(1)}%–${(p.ci_high*100).toFixed(1)}%`
+        : `${p.ci_low.toFixed(3)}–${p.ci_high.toFixed(3)}`;
+      if (blEl && d.baselines && d.baselines[0]) blEl.textContent = d.baselines[0].primary_value;
+    } catch(e){}
+  }
+}
+loadPaperMetrics();
+</script>
+</body>
+</html>

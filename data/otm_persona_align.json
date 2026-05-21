@@ -1,0 +1,42 @@
+{
+  "benchmark_id": "OTM-Persona-Align",
+  "version": "v1.0",
+  "run_id": "2026-05-21T20:43:00.419098+00:00",
+  "completed_at": "2026-05-21T20:43:00.419098+00:00",
+  "agent_version": "v0.2.0-oos-clean",
+  "n_samples": 50,
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "metrics": {
+    "primary": {
+      "name": "response_divergence_cosine",
+      "value": 0.4024,
+      "ci_low": 0.3506,
+      "ci_high": 0.4569,
+      "n": 50
+    },
+    "secondary": [
+      {
+        "name": "skill_selection_jaccard",
+        "value": 0.9816,
+        "ci_low": 0.9725,
+        "ci_high": 0.9894
+      }
+    ]
+  },
+  "baselines": [
+    {
+      "name": "fixed_neutral_mode",
+      "primary_value": 1.0061,
+      "jaccard_value": 0.8763,
+      "description": "Two neutral (50/50) runs \u2014 expected low divergence"
+    }
+  ],
+  "notes": "Simulated agent runs with persona-conditioned skill selection.",
+  "data_filter": "All queries synthetic; no OOS data used in persona alignment test."
+}

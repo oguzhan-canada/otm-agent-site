@@ -1,0 +1,73 @@
+{
+  "benchmark_id": "OTM-Mem-Utility",
+  "version": "v1.0",
+  "run_id": "2026-05-21T20:43:05.851742+00:00",
+  "completed_at": "2026-05-21T20:43:05.851742+00:00",
+  "agent_version": "v0.2.0-oos-clean",
+  "n_samples": 500,
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "metrics": {
+    "primary": {
+      "name": "memory_utility",
+      "value": 0.7156,
+      "ci_low": 0.6731,
+      "ci_high": 0.7586,
+      "n": 500
+    },
+    "secondary": [
+      {
+        "name": "mean_score_with_memory",
+        "value": 3.7122
+      },
+      {
+        "name": "mean_score_without_memory",
+        "value": 2.9967
+      },
+      {
+        "name": "utility_factual_domain",
+        "value": 0.8001,
+        "ci_low": 0.7388,
+        "ci_high": 0.8636
+      },
+      {
+        "name": "utility_historical_comparison",
+        "value": 1.1079,
+        "ci_low": 1.0358,
+        "ci_high": 1.177
+      },
+      {
+        "name": "utility_pattern_recognition",
+        "value": 1.0057,
+        "ci_low": 0.9339,
+        "ci_high": 1.0763
+      },
+      {
+        "name": "utility_real_time",
+        "value": 0.0486,
+        "ci_low": -0.0052,
+        "ci_high": 0.1012
+      },
+      {
+        "name": "utility_reasoning",
+        "value": 0.6157,
+        "ci_low": 0.5623,
+        "ci_high": 0.6687
+      }
+    ]
+  },
+  "baselines": [
+    {
+      "name": "no_memory",
+      "primary_value": 0.0,
+      "description": "Zero utility \u2014 memory disabled"
+    }
+  ],
+  "notes": "Simulated LLM-as-judge scoring with category-specific memory boosts.",
+  "data_filter": "Queries synthetic; scoring simulated."
+}

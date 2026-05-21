@@ -84,6 +84,30 @@
     </div>
   </div>
 
+  <div class="section-label">Benchmark results (live from data/)</div>
+  <div class="metric-grid">
+    <div class="metric">
+      <div class="metric-label">Persona Divergence</div>
+      <div class="metric-value" id="idx-persona">—</div>
+      <div class="metric-sub" id="idx-persona-ci"></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Skill Pass Rate</div>
+      <div class="metric-value" id="idx-skill">—</div>
+      <div class="metric-sub" id="idx-skill-ci"></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Memory Utility</div>
+      <div class="metric-value" id="idx-mem">—</div>
+      <div class="metric-sub" id="idx-mem-ci"></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">OOS Dir. Accuracy</div>
+      <div class="metric-value" id="idx-oos">—</div>
+      <div class="metric-sub" id="idx-oos-ci"></div>
+    </div>
+  </div>
+
   <h2>What is OTM-Agent?</h2>
   <p>Commodity analysts integrate satellite imagery, market microstructure data, and econometric models to form views on global oil storage. This workflow demands expertise spanning remote sensing, time-series analysis, and energy trading — a combination rarely found in a single practitioner.</p>
   <p>OTM-Agent addresses this by wrapping an operational three-stage pipeline — Sentinel-1 SAR processing, feature engineering with market data, and signal generation — with an LLM-based planner that selects which pipeline components to run and in what order, a persistent memory system that maintains context across sessions, and a persona model that adapts behavior to individual analysts.</p>
@@ -164,6 +188,30 @@ function toggleTheme() {
   const saved = localStorage.getItem('theme');
   if (saved) document.documentElement.setAttribute('data-theme', saved);
 })();
+
+async function loadMetrics() {
+  const items = [
+    { file: 'data/otm_persona_align.json', id: 'idx-persona', ci: 'idx-persona-ci', pct: false },
+    { file: 'data/otm_skill_retention.json', id: 'idx-skill', ci: 'idx-skill-ci', pct: true },
+    { file: 'data/otm_mem_utility.json', id: 'idx-mem', ci: 'idx-mem-ci', pct: false },
+    { file: 'data/otm_oos_replay.json', id: 'idx-oos', ci: 'idx-oos-ci', pct: true },
+  ];
+  for (const it of items) {
+    try {
+      const r = await fetch(it.file);
+      if (!r.ok) continue;
+      const d = await r.json();
+      const p = d.metrics.primary;
+      const el = document.getElementById(it.id);
+      const ciEl = document.getElementById(it.ci);
+      if (el) el.textContent = it.pct ? (p.value*100).toFixed(1)+'%' : p.value.toFixed(3);
+      if (ciEl) ciEl.textContent = it.pct
+        ? `CI: [${(p.ci_low*100).toFixed(1)}%, ${(p.ci_high*100).toFixed(1)}%]`
+        : `CI: [${p.ci_low.toFixed(3)}, ${p.ci_high.toFixed(3)}]`;
+    } catch(e) {}
+  }
+}
+loadMetrics();
 </script>
 </body>
 </html>

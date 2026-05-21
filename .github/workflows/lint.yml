@@ -1,0 +1,63 @@
+name: Lint & Validate
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate HTML
+        run: |
+          # Check all HTML files have proper structure
+          for f in *.html; do
+            echo "Checking $f..."
+            if ! grep -q '</html>' "$f"; then
+              echo "ERROR: $f missing closing </html> tag"
+              exit 1
+            fi
+            if ! grep -q '<title>' "$f"; then
+              echo "ERROR: $f missing <title> tag"
+              exit 1
+            fi
+          done
+          echo "All HTML files valid."
+
+      - name: Validate JSON data files
+        run: |
+          if [ -d data ]; then
+            for f in data/*.json; do
+              echo "Validating $f..."
+              python3 -c "
+          import json, sys
+          with open('$f') as fh:
+              d = json.load(fh)
+              assert 'benchmark_id' in d, 'Missing benchmark_id'
+              assert 'metrics' in d, 'Missing metrics'
+              assert 'primary' in d['metrics'], 'Missing primary metric'
+              p = d['metrics']['primary']
+              assert 'value' in p, 'Missing primary value'
+              assert 'ci_low' in p, 'Missing ci_low'
+              assert 'ci_high' in p, 'Missing ci_high'
+              print(f'  OK: {d[\"benchmark_id\"]} = {p[\"value\"]}')
+          "
+            done
+          fi
+
+      - name: Check links
+        run: |
+          # Simple internal link check
+          for f in *.html; do
+            grep -oP 'href="([^"#]+\.html)"' "$f" | sed 's/href="//;s/"//' | while read link; do
+              if [ ! -f "$link" ]; then
+                echo "ERROR: Broken link in $f -> $link"
+                exit 1
+              fi
+            done
+          done
+          echo "All internal links valid."

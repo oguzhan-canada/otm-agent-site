@@ -1,0 +1,87 @@
+{
+  "benchmark_id": "OTM-Skill-Retention",
+  "version": "v1.0",
+  "run_id": "2026-05-21T20:43:02.780300+00:00",
+  "completed_at": "2026-05-21T20:43:02.780300+00:00",
+  "agent_version": "v0.2.0-oos-clean",
+  "n_samples": 20,
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "metrics": {
+    "primary": {
+      "name": "pass_rate",
+      "value": 0.88,
+      "ci_low": 0.845,
+      "ci_high": 0.915,
+      "n": 20
+    },
+    "secondary": [
+      {
+        "name": "pass_rate_delay_1",
+        "value": 0.97,
+        "ci_low": 0.95,
+        "ci_high": 0.99
+      },
+      {
+        "name": "pass_rate_delay_3",
+        "value": 0.87,
+        "ci_low": 0.81,
+        "ci_high": 0.92
+      },
+      {
+        "name": "pass_rate_delay_5",
+        "value": 0.85,
+        "ci_low": 0.79,
+        "ci_high": 0.9
+      },
+      {
+        "name": "pass_rate_delay_10",
+        "value": 0.83,
+        "ci_low": 0.76,
+        "ci_high": 0.88
+      },
+      {
+        "name": "pass_rate_alerts",
+        "value": 0.9
+      },
+      {
+        "name": "pass_rate_bigquery",
+        "value": 0.9083
+      },
+      {
+        "name": "pass_rate_cloud_run",
+        "value": 0.875
+      },
+      {
+        "name": "pass_rate_compute",
+        "value": 0.86
+      },
+      {
+        "name": "pass_rate_llm",
+        "value": 0.8
+      },
+      {
+        "name": "pass_rate_ml",
+        "value": 0.8833
+      },
+      {
+        "name": "pass_rate_trade",
+        "value": 0.95
+      }
+    ]
+  },
+  "baselines": [
+    {
+      "name": "random_selection",
+      "primary_value": 0.05,
+      "description": "Random skill selection from 20 skills"
+    }
+  ],
+  "notes": "Simulated planner responses with turn-delay decay model.",
+  "data_filter": "Probes are synthetic queries; no OOS data used."
+}
