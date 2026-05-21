@@ -836,15 +836,27 @@ function pearsonR(xs, ys) {
   const denom = Math.sqrt(dx2*dy2);
   return denom === 0 ? 0 : num/denom;
 }
-function drawCorrChart(joined) {
+function drawCorrChart(joined, pairedData) {
   if (corrChartObj) corrChartObj.destroy();
+  const paired = pairedData || joined.filter(d => d.price !== null && d.avgPct !== null);
   if (corrView === 'scatter') {
-    const overlap = joined.filter(d => d.price !== null && d.avgPct !== null);
+    if (paired.length === 0) {
+      // No overlapping data — show message instead of empty chart
+      const ctx = document.getElementById('corrChart').getContext('2d');
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      ctx.font = '13px Inter, sans-serif';
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text3').trim() || '#999';
+      ctx.textAlign = 'center';
+      ctx.fillText('Not enough overlapping SAR + price data for scatter plot yet.', ctx.canvas.width / 2, ctx.canvas.height / 2);
+      ctx.fillText(`${Object.keys(joined.filter(d=>d.avgDb!==null)).length || 0} SAR days — need exact or ±3-day price matches`, ctx.canvas.width / 2, ctx.canvas.height / 2 + 22);
+      return;
+    }
+    const useMatched = paired[0] && paired[0].matchedPrice !== undefined;
     corrChartObj = new Chart(document.getElementById('corrChart'), {
       type: 'scatter',
       data: { datasets: [
-        { label: 'Price vs Fill %', data: overlap.map(d => ({ x: d.price, y: d.avgPct })), backgroundColor: '#0d9e75', borderColor: 'rgba(13,158,117,0.4)', pointRadius: 5, pointHoverRadius: 8 },
-        { label: 'Price vs dB', data: overlap.map(d => ({ x: d.price, y: d.avgDb })), backgroundColor: '#0066CC', borderColor: 'rgba(0,102,204,0.4)', pointRadius: 5, pointHoverRadius: 8, yAxisID: 'yDb' }
+        { label: 'Price vs Fill %', data: paired.map(d => ({ x: useMatched ? d.matchedPrice : d.price, y: d.avgPct })), backgroundColor: '#0d9e75', borderColor: 'rgba(13,158,117,0.4)', pointRadius: 6, pointHoverRadius: 9 },
+        { label: 'Price vs dB', data: paired.map(d => ({ x: useMatched ? d.matchedPrice : d.price, y: d.avgDb })), backgroundColor: '#0066CC', borderColor: 'rgba(0,102,204,0.4)', pointRadius: 6, pointHoverRadius: 9, yAxisID: 'yDb' }
       ]},
       options: { responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: true, labels: { font: { size: 11 }, boxWidth: 8 } }, tooltip: { callbacks: { label: (ctx) => { const ds = ctx.dataset.label; return ds.includes('Fill') ? `$${ctx.parsed.x.toFixed(2)}/bbl \u2192 ${ctx.parsed.y.toFixed(1)}% fill` : `$${ctx.parsed.x.toFixed(2)}/bbl \u2192 ${ctx.parsed.y.toFixed(1)} dB`; } } } },
@@ -870,18 +882,45 @@ function drawCorrChart(joined) {
 async function renderCorrelation(days) {
   const prices = await fetchOilPrices(days);
   const avgs = computeDailyAverages(historyData);
-  const allDates = [...new Set([...Object.keys(prices), ...Object.keys(avgs)])].sort();
-  corrJoined = allDates.filter(d => prices[d] !== undefined || avgs[d] !== undefined).map(d => ({ date: d, price: prices[d] || null, avgDb: avgs[d] ? avgs[d].avgDb : null, avgPct: avgs[d] ? avgs[d].avgPct : null }));
-  const overlap = corrJoined.filter(d => d.price !== null && d.avgDb !== null);
-  const rDb = pearsonR(overlap.map(d => d.price), overlap.map(d => d.avgDb));
-  const rPct = pearsonR(overlap.map(d => d.price), overlap.map(d => d.avgPct));
+  const priceDates = Object.keys(prices).sort();
+
+  // For each SAR date, find nearest price date (within 3 calendar days)
+  function nearestPrice(sarDate) {
+    const sd = new Date(sarDate + 'T00:00:00Z').getTime();
+    let best = null, bestDist = Infinity;
+    for (const pd of priceDates) {
+      const dist = Math.abs(new Date(pd + 'T00:00:00Z').getTime() - sd);
+      if (dist < bestDist) { bestDist = dist; best = pd; }
+    }
+    return best && bestDist <= 3 * 86400000 ? prices[best] : null;
+  }
+
+  // Build joined array: all price dates + all SAR dates (de-duped, sorted)
+  const allDates = [...new Set([...priceDates, ...Object.keys(avgs)])].sort();
+  corrJoined = allDates.map(d => ({
+    date: d,
+    price: prices[d] !== undefined ? prices[d] : null,
+    avgDb: avgs[d] ? avgs[d].avgDb : null,
+    avgPct: avgs[d] ? avgs[d].avgPct : null,
+    // For scatter: use nearest-date matching so sparse SAR dates still pair with prices
+    matchedPrice: avgs[d] ? nearestPrice(d) : null,
+  }));
+
+  // Use matched prices for correlation & scatter (exact-date overlap is too sparse)
+  const sarWithPrice = corrJoined.filter(d => d.avgDb !== null && d.matchedPrice !== null);
+  const rDb = pearsonR(sarWithPrice.map(d => d.matchedPrice), sarWithPrice.map(d => d.avgDb));
+  const rPct = pearsonR(sarWithPrice.map(d => d.matchedPrice), sarWithPrice.map(d => d.avgPct));
   const corrLabel = document.getElementById('corr-label');
-  if (rDb !== null) { corrLabel.textContent = `r(price,dB) = ${rDb.toFixed(3)}` + (rPct !== null ? ` | r(price,fill%) = ${rPct.toFixed(3)}` : '') + ` | ${overlap.length} overlapping days`; }
-  else { corrLabel.textContent = `${Object.keys(avgs).length} SAR days, ${Object.keys(prices).length} price days (need 3+ overlap for correlation)`; }
-  drawCorrChart(corrJoined);
+  if (rDb !== null) {
+    corrLabel.textContent = `r(price,dB) = ${rDb.toFixed(3)}` + (rPct !== null ? ` | r(price,fill%) = ${rPct.toFixed(3)}` : '') + ` | ${sarWithPrice.length} paired observations`;
+  } else {
+    corrLabel.textContent = `${Object.keys(avgs).length} SAR days, ${priceDates.length} price days (need 3+ paired observations for correlation)`;
+  }
+  drawCorrChart(corrJoined, sarWithPrice);
 }
 async function init() {
-  await Promise.all([loadSnapshot(), loadHistory(30)]);
+  // Load 90 days of history to cover the correlation chart range
+  await Promise.all([loadSnapshot(), loadHistory(90)]);
   if (!selectedTank && snapshotData && snapshotData.tank_features) {
     const tanks = dedupBy(snapshotData.tank_features, 'tank_id');
     if (tanks.length > 0) selectTank(tanks[0].tank_id);
