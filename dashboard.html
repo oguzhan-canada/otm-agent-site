@@ -235,6 +235,7 @@
   .banner-warn  { background: var(--warn-bg); color: var(--warn-text); border-radius: var(--radius); padding: .7rem 1rem; font-size: 12px; margin-top: .75rem; line-height: 1.6; }
   .banner-error { background: var(--err-bg);  color: var(--err-text);  border-radius: var(--radius); padding: .6rem 1rem; font-size: 12.5px; margin-bottom: .75rem; }
   .banner-stale { background: var(--warn-bg); color: var(--warn-text); border-radius: var(--radius); padding: .7rem 1rem; font-size: 12px; margin-bottom: 1.5rem; line-height: 1.6; }
+  .banner-error code, .banner-stale code { background: rgba(0,0,0,0.08); padding: 2px 5px; border-radius: 3px; font-size: 11px; word-break: break-all; }
 
   /* ── Trend controls ── */
   .trend-panel { margin-bottom: 1.5rem; }
@@ -456,7 +457,12 @@
 
 </div>
 <script>
-const API_BASE = "https://otm-api-dev-481921676964.northamerica-northeast1.run.app";
+// ── API Configuration & Guardrails ──────────────────────────
+const API_URLS = [
+  "https://otm-api-dev-zdqsboxooa-nn.a.run.app",            // canonical Cloud Run URL
+  "https://otm-api-dev-481921676964.northamerica-northeast1.run.app" // legacy project-number URL
+];
+let API_BASE = API_URLS[0];
 const REF_MIN = -32, REF_MAX = -5;
 const RCOL = {cushing:'#0066CC', rotterdam:'#0d9e75', fujairah:'#c47a00', singapore:'#7755cc'};
 let currentUnit = 'pct';
@@ -465,6 +471,45 @@ let historyData = {};
 let trendChartObj = null;
 let regionChartObj = null;
 let snapshotData = null;
+let consecutiveFailures = 0;
+const MAX_RETRIES = 2;
+const FETCH_TIMEOUT_MS = 12000;
+const STALE_WARN_DAYS = 2;
+const STALE_CRIT_DAYS = 7;
+const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const POLL_BACKOFF_MS  = 15 * 60 * 1000; // 15 min after repeated failures
+
+// Fetch with timeout + automatic failover to backup URL
+async function apiFetch(path, opts = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const urls = [API_BASE, ...API_URLS.filter(u => u !== API_BASE)];
+  let lastErr;
+  for (const base of urls) {
+    try {
+      const resp = await fetch(`${base}${path}`, { ...opts, signal: controller.signal });
+      clearTimeout(timeout);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      API_BASE = base; // stick with whichever URL worked
+      consecutiveFailures = 0;
+      return resp;
+    } catch (e) {
+      lastErr = e;
+      if (e.name === 'AbortError') { lastErr = new Error('Request timed out after ' + (FETCH_TIMEOUT_MS/1000) + 's'); break; }
+    }
+  }
+  clearTimeout(timeout);
+  consecutiveFailures++;
+  throw lastErr;
+}
+
+function showBanner(id, msg, level) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = 'block';
+  el.className = level === 'error' ? 'banner-error' : level === 'warn' ? 'banner-stale' : 'banner-stale';
+  el.innerHTML = msg;
+}
 
 function dedupBy(arr, key) {
   const seen = new Set();
@@ -546,14 +591,6 @@ function renderSnapshot(data) {
   document.getElementById('m-regions').textContent = new Set(tanks.map(t => t.region_code)).size;
   document.getElementById('m-anom').textContent = curated.filter(c => c.is_anomaly).length;
   document.getElementById('tank-date').textContent = 'Observation date: ' + (data.obs_date || '—');
-  const staleBanner = document.getElementById('stale-banner');
-  if (data.obs_date) {
-    const ageDays = Math.floor((Date.now() - new Date(data.obs_date + 'T00:00:00Z')) / 86400000);
-    if (ageDays > 2) {
-      staleBanner.style.display = 'block';
-      staleBanner.textContent = `⚠ Data is ${ageDays} day${ageDays !== 1 ? 's' : ''} old (last observation: ${data.obs_date}). The pipeline may not have run recently — check Cloud Run job status or trigger it manually.`;
-    } else { staleBanner.style.display = 'none'; }
-  }
   renderSummary(data.obs_date, tanks, curated, regions);
   const hasProxy = curated.some(c => c.fill_proxy !== null);
   const hasBuilding = curated.some(c => c.fill_proxy === null);
@@ -660,23 +697,60 @@ document.getElementById('days-select').addEventListener('change', () => { if (se
 
 async function loadHistory(days) {
   try {
-    const resp = await fetch(`${API_BASE}/history?days=${days}`);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const resp = await apiFetch(`/history?days=${days}`);
     const data = await resp.json();
     historyData = data.tank_history || {};
     if (selectedTank && historyData[selectedTank]) drawTrend(selectedTank);
   } catch (e) { console.warn('History fetch failed:', e.message); }
 }
 async function loadSnapshot() {
+  const errBanner = document.getElementById('error-banner');
+  const staleBanner = document.getElementById('stale-banner');
   try {
-    const resp = await fetch(`${API_BASE}/data`);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const resp = await apiFetch('/data');
     const data = await resp.json();
+
+    // Validate response has required fields
+    if (!data || !data.tank_features || !Array.isArray(data.tank_features)) {
+      throw new Error('Invalid API response — missing tank_features');
+    }
+
+    errBanner.style.display = 'none';
     document.getElementById('data-note').textContent = 'Live · ' + (data.generated_at || '').slice(0, 16) + ' UTC';
+
+    // Stale-data guardrail: classify staleness
+    if (data.obs_date) {
+      const ageDays = Math.floor((Date.now() - new Date(data.obs_date + 'T00:00:00Z')) / 86400000);
+      if (ageDays >= STALE_CRIT_DAYS) {
+        showBanner('stale-banner',
+          `🔴 <strong>Data is ${ageDays} days old</strong> (last observation: ${data.obs_date}). ` +
+          `The SAR pipeline has not produced results in over a week. ` +
+          `<strong>Action needed:</strong> check <a href="https://console.cloud.google.com/run/jobs?project=oil-tank-monitoring-123" target="_blank" style="color:inherit;text-decoration:underline">Cloud Run Jobs</a> for failures, ` +
+          `or trigger manually: <code style="font-size:11px">gcloud run jobs execute job-otm-daily-runner-dev --project=oil-tank-monitoring-123 --region=northamerica-northeast1</code>`,
+          'error');
+      } else if (ageDays > STALE_WARN_DAYS) {
+        showBanner('stale-banner',
+          `⚠ <strong>Data is ${ageDays} day${ageDays !== 1 ? 's' : ''} old</strong> (last observation: ${data.obs_date}). ` +
+          `SAR satellites revisit every 6–12 days — if this exceeds 12 days, the pipeline may need attention.`,
+          'warn');
+      } else {
+        staleBanner.style.display = 'none';
+      }
+    }
+
     renderSnapshot(data);
   } catch (e) {
-    document.getElementById('error-banner').style.display = 'block';
-    document.getElementById('error-banner').textContent = 'Could not reach API (' + e.message + '). Showing seed data.';
+    // Show actionable error with diagnostics
+    const failMsg = consecutiveFailures > 1
+      ? `API unreachable after ${consecutiveFailures} consecutive attempts. `
+      : `Could not reach API (${e.message}). `;
+    showBanner('error-banner',
+      `🔴 ${failMsg}` +
+      `Showing last known data. ` +
+      `<br><strong>Troubleshooting:</strong> ` +
+      `<a href="${API_URLS[0]}/data" target="_blank" style="color:inherit;text-decoration:underline">Test API directly</a> · ` +
+      `<a href="https://console.cloud.google.com/run/detail/northamerica-northeast1/otm-api-dev/logs?project=oil-tank-monitoring-123" target="_blank" style="color:inherit;text-decoration:underline">View service logs</a>`,
+      'error');
     document.getElementById('data-note').textContent = 'Offline — showing seed data';
     renderSnapshot(SEED);
   }
@@ -815,7 +889,17 @@ async function init() {
   renderCorrelation(90);
 }
 init();
-setInterval(() => { loadSnapshot(); loadHistory(parseInt(document.getElementById('days-select').value)); }, 5 * 60 * 1000);
+
+// Adaptive polling: slow down after repeated failures
+function schedulePoll() {
+  const interval = consecutiveFailures >= 3 ? POLL_BACKOFF_MS : POLL_INTERVAL_MS;
+  setTimeout(() => {
+    loadSnapshot();
+    loadHistory(parseInt(document.getElementById('days-select').value));
+    schedulePoll();
+  }, interval);
+}
+schedulePoll();
 </script>
 </body>
 </html>
