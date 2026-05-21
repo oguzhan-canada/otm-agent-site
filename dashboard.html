@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -676,16 +677,37 @@ function drawTrend(tankId) {
   const hasAnyProxy = history.some(h => h.fill_proxy !== null);
   let effectiveUnit = currentUnit;
   if (!hasAnyProxy && currentUnit === 'pct') effectiveUnit = 'db';
-  const labels = history.map(h => h.obs_date);
-  const dbVals = history.map(h => h.mean_vv !== null ? parseFloat(h.mean_vv.toFixed(2)) : null);
-  const pctVals = history.map(h => h.fill_proxy !== null ? Math.round(h.fill_proxy * 100) : null);
+
+  // Build data points with proper date objects for time axis
+  const dataPoints = history
+    .filter(h => h.obs_date)
+    .sort((a, b) => a.obs_date.localeCompare(b.obs_date))
+    .map(h => ({
+      x: h.obs_date,
+      db: h.mean_vv !== null ? parseFloat(h.mean_vv.toFixed(2)) : null,
+      pct: h.fill_proxy !== null ? Math.round(h.fill_proxy * 100) : null,
+    }));
+
   const datasets = [];
   if (effectiveUnit === 'db' || effectiveUnit === 'both') {
-    datasets.push({ label: 'Mean VV (dB)', data: dbVals, borderColor: '#0066CC', backgroundColor: 'rgba(0,102,204,0.06)', tension: 0.3, pointRadius: 3, pointHoverRadius: 5, fill: effectiveUnit === 'db', yAxisID: effectiveUnit === 'both' ? 'ydb' : 'y', spanGaps: true });
+    datasets.push({
+      label: 'Mean VV (dB)',
+      data: dataPoints.map(p => ({ x: p.x, y: p.db })),
+      borderColor: '#0066CC', backgroundColor: 'rgba(0,102,204,0.06)',
+      tension: 0.3, pointRadius: 4, pointHoverRadius: 6,
+      fill: effectiveUnit === 'db', yAxisID: effectiveUnit === 'both' ? 'ydb' : 'y', spanGaps: true
+    });
   }
   if (effectiveUnit === 'pct' || effectiveUnit === 'both') {
-    datasets.push({ label: 'Fill estimate (%)', data: pctVals, borderColor: '#0d9e75', backgroundColor: 'rgba(13,158,117,0.06)', tension: 0.3, pointRadius: 3, pointHoverRadius: 5, fill: effectiveUnit === 'pct', yAxisID: effectiveUnit === 'both' ? 'ypct' : 'y', spanGaps: true });
+    datasets.push({
+      label: 'Fill estimate (%)',
+      data: dataPoints.map(p => ({ x: p.x, y: p.pct })),
+      borderColor: '#0d9e75', backgroundColor: 'rgba(13,158,117,0.06)',
+      tension: 0.3, pointRadius: 4, pointHoverRadius: 6,
+      fill: effectiveUnit === 'pct', yAxisID: effectiveUnit === 'both' ? 'ypct' : 'y', spanGaps: true
+    });
   }
+
   const scales = {};
   if (effectiveUnit === 'both') {
     scales.ydb = { type: 'linear', position: 'right', title: { display: true, text: 'dB', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { color: 'rgba(128,128,128,0.07)' } };
@@ -695,11 +717,18 @@ function drawTrend(tankId) {
   } else {
     scales.y = { ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { color: 'rgba(128,128,128,0.08)' } };
   }
-  scales.x = { ticks: { font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 10 }, grid: { display: false } };
+  // Time-based x-axis so irregular SAR dates are spaced correctly
+  scales.x = {
+    type: 'time',
+    time: { unit: 'day', tooltipFormat: 'yyyy-MM-dd', displayFormats: { day: 'MMM d' } },
+    ticks: { font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 12 },
+    grid: { display: false }
+  };
+
   if (trendChartObj) trendChartObj.destroy();
   trendChartObj = new Chart(document.getElementById('trendChart'), {
-    type: 'line', data: { labels, datasets },
-    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: datasets.length > 1, labels: { font: { size: 11 }, boxWidth: 10 } } }, scales }
+    type: 'line', data: { datasets },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, plugins: { legend: { display: datasets.length > 1, labels: { font: { size: 11 }, boxWidth: 10 } }, tooltip: { callbacks: { title: (items) => items[0] ? items[0].raw.x : '' } } }, scales }
   });
 }
 document.getElementById('days-select').addEventListener('change', () => { if (selectedTank) loadHistory(parseInt(document.getElementById('days-select').value)); });
