@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About — OTM-Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTM<span>-Agent</span></a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="methods.html">Methods</a>
+      <a href="benchmarks.html">Benchmarks</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="audit.html">Audit</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="about.html" class="active">About</a>
+    </div>
+    <div class="nav-right">
+      <a href="https://github.com/oguzhan-canada/otm-agent-site" style="color:var(--text3);font-size:13px">GitHub</a>
+      <button class="theme-toggle" onclick="toggleTheme()">☀/☾</button>
+    </div>
+  </div>
+</nav>
+
+<div class="page">
+  <h1>About</h1>
+  <p class="subtitle">Project background, author, and contact information.</p>
+
+  <h2>Project</h2>
+  <p>OTM-Agent is an LLM-orchestrated agentic system for satellite-based commodity intelligence. It wraps an operational three-stage pipeline — Sentinel-1 SAR processing, feature engineering with market data, and signal generation — with a typed skill library (20 skills), four-tier memory, Bayesian persona vectors (64 dimensions), and a multi-objective reward function.</p>
+  <p>The system monitors 13 floating-roof oil storage tanks across 4 global hubs (Cushing, Rotterdam, Fujairah, Singapore) using daily Sentinel-1 SAR satellite imagery processed on Google Cloud Platform.</p>
+  <p>This is a <strong>research project</strong>. Paper trading only. Not investment advice.</p>
+
+  <h2>Author</h2>
+  <div class="card">
+    <div class="card-title">Oguzhan Tekin</div>
+    <p>
+      <a href="https://github.com/oguzhan-canada">GitHub</a> ·
+      <a href="mailto:oguzhantekin@gmail.com">Email</a>
+    </p>
+  </div>
+
+  <h2>Infrastructure</h2>
+  <table>
+    <thead>
+      <tr><th>Component</th><th>Technology</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Cloud Platform</td><td>Google Cloud Platform (GCP)</td></tr>
+      <tr><td>Compute</td><td>Cloud Run (Jobs + Services)</td></tr>
+      <tr><td>Data Warehouse</td><td>BigQuery (31 tables, 6 datasets)</td></tr>
+      <tr><td>Storage</td><td>Cloud Storage (5 buckets)</td></tr>
+      <tr><td>SAR Source</td><td>Sentinel-1 GRD IW VV via Google Earth Engine</td></tr>
+      <tr><td>ML Models</td><td>LightGBM (regime, spread, EIA)</td></tr>
+      <tr><td>LLM (Planner)</td><td>Claude Sonnet 4 (via Anthropic API)</td></tr>
+      <tr><td>LLM (Executor)</td><td>Claude Haiku 4.5</td></tr>
+      <tr><td>Fine-tune Target</td><td>Qwen 2.5 7B (DPO, pending)</td></tr>
+      <tr><td>State Estimation</td><td>Kalman filter</td></tr>
+      <tr><td>Persona Model</td><td>64-d Bayesian posterior, Kalman-updated</td></tr>
+      <tr><td>IaC</td><td>Terraform</td></tr>
+      <tr><td>Public Site</td><td>Static HTML/CSS on GitHub Pages</td></tr>
+    </tbody>
+  </table>
+
+  <h2>License</h2>
+  <p>This project is released under the MIT License. See the <a href="https://github.com/oguzhan-canada/otm-agent-site">GitHub repository</a> for details.</p>
+
+  <h2>Disclaimer</h2>
+  <p style="font-size:13px;color:var(--text3)">This is a research project for educational and demonstration purposes only. All trading is simulated (paper trading). Nothing on this site constitutes investment advice. The authors are not responsible for any decisions made based on information presented here. Past performance of models does not guarantee future results.</p>
+
+</div>
+
+<footer>
+  <span>OTM-Agent · About</span>
+  <span>Last updated: 2026-05-21</span>
+</footer>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+  localStorage.setItem('theme', html.getAttribute('data-theme'));
+}
+(function() {
+  const saved = localStorage.getItem('theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+})();
+</script>
+</body>
+</html>

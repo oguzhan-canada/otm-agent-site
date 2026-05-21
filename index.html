@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OTM-Agent — Satellite-Based Commodity Intelligence</title>
+<meta name="description" content="OTM-Agent: an LLM-orchestrated agentic system for satellite-based oil tank monitoring and commodity intelligence.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTM<span>-Agent</span></a>
+    <div class="nav-links">
+      <a href="index.html" class="active">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="methods.html">Methods</a>
+      <a href="benchmarks.html">Benchmarks</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="audit.html">Audit</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="about.html">About</a>
+    </div>
+    <div class="nav-right">
+      <a href="https://github.com/oguzhan-canada/otm-agent-site" style="color:var(--text3);font-size:13px">GitHub</a>
+      <button class="theme-toggle" onclick="toggleTheme()">☀/☾</button>
+    </div>
+  </div>
+</nav>
+
+<div class="page">
+
+  <h1>OTM-Agent</h1>
+  <p class="subtitle">An LLM-orchestrated agentic system that wraps an operational oil tank SAR monitoring pipeline with a typed skill library, four-tier memory, Bayesian persona vectors, and multi-objective reward — evaluated on 12+ months of out-of-sample data.</p>
+
+  <div class="section-label">System at a glance</div>
+  <div class="metric-grid">
+    <div class="metric">
+      <div class="metric-label">Skills</div>
+      <div class="metric-value">20</div>
+      <div class="metric-sub">across 7 categories</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Memory Tiers</div>
+      <div class="metric-value">4</div>
+      <div class="metric-sub">episodic · semantic · procedural · working</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Persona Dimensions</div>
+      <div class="metric-value">64</div>
+      <div class="metric-sub">Bayesian posterior, Kalman-updated</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Tests Passing</div>
+      <div class="metric-value">256</div>
+      <div class="metric-sub">incl. 16 causal leakage tests</div>
+    </div>
+  </div>
+
+  <div class="section-label">Pipeline results</div>
+  <div class="metric-grid">
+    <div class="metric">
+      <div class="metric-label">Regime Accuracy</div>
+      <div class="metric-value">65.4%</div>
+      <div class="metric-sub">vs 52.9% majority baseline</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">EIA Direction</div>
+      <div class="metric-value">52.8%</div>
+      <div class="metric-sub">Stage 1 Kalman vs EIA</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Global Hubs</div>
+      <div class="metric-value">4</div>
+      <div class="metric-sub">Cushing · Rotterdam · Fujairah · Singapore</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Tanks Monitored</div>
+      <div class="metric-value">13</div>
+      <div class="metric-sub">floating-roof, Sentinel-1 SAR</div>
+    </div>
+  </div>
+
+  <h2>What is OTM-Agent?</h2>
+  <p>Commodity analysts integrate satellite imagery, market microstructure data, and econometric models to form views on global oil storage. This workflow demands expertise spanning remote sensing, time-series analysis, and energy trading — a combination rarely found in a single practitioner.</p>
+  <p>OTM-Agent addresses this by wrapping an operational three-stage pipeline — Sentinel-1 SAR processing, feature engineering with market data, and signal generation — with an LLM-based planner that selects which pipeline components to run and in what order, a persistent memory system that maintains context across sessions, and a persona model that adapts behavior to individual analysts.</p>
+  <p>The LLM serves as a <strong>planner, not a predictor</strong>. The statistical models in Stages 1–3 handle prediction; the LLM decides what to run, when, and how to interpret the results in context.</p>
+
+  <h2>Architecture Overview</h2>
+  <div class="diagram">┌──────────────────────────────────────────────────────┐
+│                      OTM-Agent                        │
+│                                                       │
+│   ┌──────────┐    ┌──────────┐    ┌───────────────┐   │
+│   │ Planner  │ →  │ Executor │ →  │ Reward / Eval │   │
+│   │ (LLM)    │    │ (Skills) │    │ (Multi-obj.)  │   │
+│   └────┬─────┘    └──────────┘    └───────────────┘   │
+│        │               ↑                              │
+│   ┌────▼─────┐    ┌────┴─────┐                        │
+│   │ Memory   │    │ Persona  │                        │
+│   │ (4-tier) │    │ (64-d)   │                        │
+│   └──────────┘    └──────────┘                        │
+│                                                       │
+└───────────────────────────────────────────────────────┘
+          ↕                        ↕
+   ┌──────────────┐    ┌──────────────────┐
+   │  Stages 1–3  │    │  External APIs   │
+   │  Pipeline    │    │  (BQ, Cloud Run) │
+   └──────────────┘    └──────────────────┘</div>
+  <p>See the full <a href="architecture.html">Architecture</a> page for details on each component.</p>
+
+  <h2>Key Contributions</h2>
+  <div class="card">
+    <div class="card-title">Typed Skill Library</div>
+    <p style="margin-bottom:0">20 skills with declared preconditions, side effects, failure modes, and retention probes. The skill registry validates plans against a dependency DAG before execution.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">OOS Holdout Enforcement via Static Analysis</div>
+    <p style="margin-bottom:0">All training data restricted to dates before May 1, 2025. A pytest-based CI gate uses AST parsing to scan all training queries for the holdout filter. An audit identified 20+ queries lacking the filter — all corrected before any model training.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Causal Leakage Prevention</div>
+    <p style="margin-bottom:0">A <code>query_ts</code> parameter threaded through all 8 memory retrieval paths prevents the agent from accessing future information during OOS replay. Enforced by 16 dedicated tests.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Multi-Objective Reward</div>
+    <p style="margin-bottom:0"><code>R = R_directional + α·R_task + β·R_memory + γ·R_consistency + δ·R_retention − λ·C_cost</code>. Directional alignment with price movement provides the environment-grounded signal; auxiliary components capture task quality, memory utility, and knowledge retention.</p>
+  </div>
+
+  <h2>Recent Updates</h2>
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-21</div>
+    <div class="changelog-title">v0.1 — Public site launched</div>
+    <div class="changelog-body">Site scaffolded with architecture, methods, benchmarks, audit, and live dashboard pages. Deploy pipeline live on GitHub Pages.</div>
+  </div>
+  <p><a href="changelog.html">View full changelog →</a></p>
+
+  <h2>Links</h2>
+  <p>
+    <a href="https://github.com/oguzhan-canada/otm-agent-site">GitHub Repository</a> ·
+    <a href="architecture.html">Architecture</a> ·
+    <a href="methods.html">Methods</a> ·
+    <a href="benchmarks.html">Benchmarks</a> ·
+    <a href="dashboard.html">Live Dashboard</a>
+  </p>
+
+</div>
+
+<footer>
+  <span>OTM-Agent · GCP: oil-tank-monitoring-123 · Sentinel-1 GRD IW VV</span>
+  <span>Last updated: 2026-05-21</span>
+</footer>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+  localStorage.setItem('theme', html.getAttribute('data-theme'));
+}
+(function() {
+  const saved = localStorage.getItem('theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+})();
+</script>
+</body>
+</html>

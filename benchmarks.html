@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Benchmarks — OTM-Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTM<span>-Agent</span></a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="methods.html">Methods</a>
+      <a href="benchmarks.html" class="active">Benchmarks</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="audit.html">Audit</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="about.html">About</a>
+    </div>
+    <div class="nav-right">
+      <a href="https://github.com/oguzhan-canada/otm-agent-site" style="color:var(--text3);font-size:13px">GitHub</a>
+      <button class="theme-toggle" onclick="toggleTheme()">☀/☾</button>
+    </div>
+  </div>
+</nav>
+
+<div class="page">
+  <h1>Evaluation Benchmarks</h1>
+  <p class="subtitle">8 domain-specific benchmarks for evaluating commodity intelligence agents, with 5 baselines ranging from a scheduled rule-based system to an oracle with perfect foresight.</p>
+
+  <h2>Benchmark Suite Overview</h2>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Benchmark</th><th>n</th><th>Primary Metric</th><th>Status</th><th>Cadence</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td><strong>OTM-Persona-Align</strong></td><td>100</td><td>alignment_score</td><td><span class="badge badge-amber">v1.0 target</span></td><td>Weekly</td></tr>
+      <tr><td>2</td><td><strong>OTM-Skill-Retention</strong></td><td>20</td><td>pass_rate</td><td><span class="badge badge-amber">v1.0 target</span></td><td>Weekly</td></tr>
+      <tr><td>3</td><td><strong>OTM-Mem-Utility</strong></td><td>500</td><td>memory_utility</td><td><span class="badge badge-amber">v1.0 target</span></td><td>Bi-weekly</td></tr>
+      <tr><td>4</td><td><strong>OTM-OOS-Replay</strong></td><td>1</td><td>cumulative_pnl</td><td><span class="badge badge-amber">v1.0 target</span></td><td>Monthly</td></tr>
+      <tr><td>5</td><td>OTM-LongCtx</td><td>200</td><td>accuracy</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
+      <tr><td>6</td><td>OTM-MultiTurn-Persona</td><td>100</td><td>persona_convergence</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
+      <tr><td>7</td><td>OTM-DistShift</td><td>50</td><td>robustness_score</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
+      <tr><td>8</td><td>OTM-Mem-Ablation</td><td>200</td><td>reward_delta</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <h2>v1.0 Benchmarks — Detailed</h2>
+
+  <h3>OTM-Persona-Align</h3>
+  <div class="card">
+    <div class="card-title">What this measures</div>
+    <p>Tests the strongest architectural claim: that persona vectors produce meaningfully different behavior. 100 queries spanning the agent's domain are run twice — once seeded at the <code>execution_oriented</code> anchor, once at <code>analysis_oriented</code>. Measures cosine distance between response embeddings and Jaccard distance between skill sets called.</p>
+    <p><strong>Baseline:</strong> Same queries with fixed 50/50 persona (should give near-zero divergence).</p>
+    <p><strong>Statistical method:</strong> Mean ± bootstrap CI over 5 seeds (42–46).</p>
+  </div>
+
+  <h3>OTM-Skill-Retention</h3>
+  <div class="card">
+    <div class="card-title">What this measures</div>
+    <p>After executing a skill, the agent is queried with retention probes at increasing delays (1, 3, 5, 10 turns later). Each skill has 1–3 canonical (query, expected_skill_sequence) pairs. Pass rate = (skill correctly invoked) / (total probes). Tracks per-skill and overall knowledge decay rate.</p>
+    <p><strong>Cadence:</strong> Weekly — lightweight, catches planner regressions early.</p>
+  </div>
+
+  <h3>OTM-Mem-Utility</h3>
+  <div class="card">
+    <div class="card-title">What this measures</div>
+    <p>Counterfactual evaluation: 500 queries run with full memory retrieval, then the same queries with memory disabled. Response quality compared via LLM-as-judge (Sonnet rates both on 0–5, blind). Memory utility = mean(with_memory) − mean(without_memory).</p>
+    <p>Positive utility means memory retrieval improved outcomes; negative means it hurt. Reports per-query delta plus overall.</p>
+  </div>
+
+  <h3>OTM-OOS-Replay</h3>
+  <div class="card">
+    <div class="card-title">What this measures</div>
+    <p>The headline benchmark. Walk day-by-day through 2025-05-01 onward (~250 trading days). For each day <em>t</em>: set <code>query_ts = t</code>, ask the agent "what's the call for tomorrow?", record recommendation, compare against actual next-day move.</p>
+    <p>Reports <strong>directional accuracy</strong>, not just Sharpe. Depends critically on the Category B causal filter — all memory retrieval has <code>query_ts</code> plumbed through.</p>
+    <p><strong>Cadence:</strong> Monthly — heavy run; full replay takes hours.</p>
+  </div>
+
+  <h2>Baselines</h2>
+  <table>
+    <thead>
+      <tr><th>Baseline</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>B0 (Scheduled)</strong></td><td>Fixed daily schedule: fetch → model → signal. No planning, memory, or persona. Equivalent to base pipeline.</td></tr>
+      <tr><td><strong>B1 (Single-Skill)</strong></td><td>Always selects the single most commonly used skill. Tests whether planning adds value over a default action.</td></tr>
+      <tr><td><strong>B2 (Prompted Claude)</strong></td><td>Claude Sonnet with skill descriptions in system prompt but no memory, persona, or reward. Tests value of agent framework over raw LLM.</td></tr>
+      <tr><td><strong>B3 (Fine-tuned Qwen)</strong></td><td>Qwen 2.5 7B fine-tuned via DPO on collected trajectories. Tests value of domain-specific fine-tuning.</td></tr>
+      <tr><td><strong>B4 (Oracle)</strong></td><td>Perfect foresight — selects skills based on knowledge of future outcomes. Upper bound.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Common Output Schema</h2>
+  <p>Every benchmark writes a JSON file conforming to this schema. The site renders from these files:</p>
+  <pre><code>{
+  "benchmark_id": "OTM-Persona-Align",
+  "version": "v1.0",
+  "run_id": "2026-05-21T14:30:00Z",
+  "completed_at": "2026-05-21T14:42:15Z",
+  "agent_version": "v0.2.0-oos-clean",
+  "n_samples": 50,
+  "seeds": [42, 43, 44, 45, 46],
+  "metrics": {
+    "primary": {
+      "name": "response_divergence_cosine",
+      "value": 0.62,
+      "ci_low": 0.55,
+      "ci_high": 0.68,
+      "n": 50
+    }
+  },
+  "baselines": [
+    {"name": "fixed_50_50_mode", "primary_value": 0.08}
+  ],
+  "notes": "First production run.",
+  "data_filter": "non-OOS window (date &lt; 2025-05-01)"
+}</code></pre>
+
+  <h2>Existing Model Results</h2>
+  <p>These are the pipeline model results — the foundation the benchmarks will evaluate the agent layer against.</p>
+
+  <h3>Stage 1: SAR Pipeline (Cushing Hub)</h3>
+  <table>
+    <thead>
+      <tr><th>Metric</th><th>Value</th><th>Criterion</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Hub-state-day records</td><td>309</td><td>&gt; 0</td><td><span class="badge badge-green">PASS</span></td></tr>
+      <tr><td>EIA direction accuracy</td><td>52.8%</td><td>&gt; 50%</td><td><span class="badge badge-green">PASS</span></td></tr>
+      <tr><td>Signal stability (avg Δ)</td><td>0.173</td><td>&lt; 2.0</td><td><span class="badge badge-green">PASS</span></td></tr>
+      <tr><td>Kalman convergence</td><td>0.066 → 0.045</td><td>Decreasing</td><td><span class="badge badge-green">PASS</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Stage 2: ML Models (Walk-Forward)</h3>
+  <table>
+    <thead>
+      <tr><th>Model</th><th>Accuracy</th><th>Baseline</th><th>Δ</th><th>n</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Regime Classifier</td><td><strong>65.35%</strong></td><td>52.9%</td><td>+12.4 pp</td><td>329</td></tr>
+      <tr><td>Spread Forecaster</td><td>51.4%</td><td>50.0%</td><td>+1.4 pp</td><td>321</td></tr>
+      <tr><td>EIA Surprise</td><td>51.52%</td><td>50.0%</td><td>+1.5 pp</td><td>297</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Stage 3: Strategy Investigation</h3>
+  <p>Initial backtest (v1 naive tightness-delta signal): <strong>Sharpe −0.10</strong>. Root cause analysis identified 5 problems — signal not connected to ML models, threshold too low, no confidence gating, no risk controls. Strategy v2 implements walk-forward ML composite with regime weighting, confidence gating (0.58 threshold), and 5% drawdown stop. v2 results pending BQ execution.</p>
+
+</div>
+
+<footer>
+  <span>OTM-Agent · Benchmarks</span>
+  <span>Last updated: 2026-05-21</span>
+</footer>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+  localStorage.setItem('theme', html.getAttribute('data-theme'));
+}
+(function() {
+  const saved = localStorage.getItem('theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+})();
+</script>
+</body>
+</html>

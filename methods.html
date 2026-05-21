@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Methods — OTM-Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTM<span>-Agent</span></a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="methods.html" class="active">Methods</a>
+      <a href="benchmarks.html">Benchmarks</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="audit.html">Audit</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="about.html">About</a>
+    </div>
+    <div class="nav-right">
+      <a href="https://github.com/oguzhan-canada/otm-agent-site" style="color:var(--text3);font-size:13px">GitHub</a>
+      <button class="theme-toggle" onclick="toggleTheme()">☀/☾</button>
+    </div>
+  </div>
+</nav>
+
+<div class="page">
+  <h1>Methods</h1>
+  <p class="subtitle">Evaluation methodology, integrity controls, and reward design. Every claim on this site is either backed by a measured number or clearly marked as design intent.</p>
+
+  <h2>Out-of-Sample Holdout Policy</h2>
+  <p>All training data is restricted to dates before <strong>May 1, 2025</strong>. The subsequent 12+ months constitute the evaluation window that no model has seen during training.</p>
+  <div class="metric-grid" style="grid-template-columns: repeat(3,1fr)">
+    <div class="metric">
+      <div class="metric-label">OOS Cutoff</div>
+      <div class="metric-value">2025-05-01</div>
+      <div class="metric-sub">static, enforced in CI</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Holdout Window</div>
+      <div class="metric-value">12+ mo</div>
+      <div class="metric-sub">evaluation data</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Date Columns Checked</div>
+      <div class="metric-value">12</div>
+      <div class="metric-sub">date, obs_date, ts, …</div>
+    </div>
+  </div>
+
+  <h3>Static Enforcement (CI-Blocking)</h3>
+  <p><code>test_oos_leakage.py</code> runs 5 tests in the CI pipeline:</p>
+  <ol style="color:var(--text2);padding-left:1.5rem;margin-bottom:1.5rem">
+    <li><strong>test_sql_files_filter_training_tables</strong> — scans all <code>.sql</code> files; any query referencing 19 known training tables must include <code>WHERE &lt;date_col&gt; &lt; '2025-05-01'</code></li>
+    <li><strong>test_python_inline_sql_filters_training_tables</strong> — AST parses all Python files to extract SQL strings (including f-strings with <code>JoinedStr</code> nodes); same filter requirement</li>
+    <li><strong>test_oos_pragma_only_in_allowlisted_files</strong> — the <code>@oos-eval-only</code> pragma (for evaluation code that intentionally reads OOS data) must only appear in allowlisted files</li>
+    <li><strong>test_allowlist_entries_exist</strong> — validates every allowlisted file actually exists</li>
+    <li><strong>test_oos_cutoff_date_is_consistent</strong> — confirms cutoff date in test matches dashboard constants</li>
+  </ol>
+
+  <h3>Runtime Enforcement</h3>
+  <p><code>bq_safe.py</code> provides a <code>TrainingBQClient</code> wrapper that raises <code>OOSLeakageError</code> if a query touches a training table without the cutoff filter — defence-in-depth for dynamically constructed queries that static analysis might miss.</p>
+
+  <h3>OOS Filter Impact on Training Data</h3>
+  <table>
+    <thead>
+      <tr><th>Table</th><th>Total Rows</th><th>Pre-Cutoff</th><th>Removed</th><th>%</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>sentinel1_weekly_tank_features</td><td>5,124</td><td>4,578</td><td>546</td><td>10.7%</td></tr>
+      <tr><td>calendar_spreads</td><td>20,276</td><td>19,804</td><td>472</td><td>2.3%</td></tr>
+      <tr><td>market_prices</td><td>40,014</td><td>39,062</td><td>952</td><td>2.4%</td></tr>
+      <tr><td>release_clock</td><td>1,148</td><td>1,099</td><td>49</td><td>4.3%</td></tr>
+      <tr><td>cot_positions</td><td>327</td><td>75</td><td>252</td><td>77.1%</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Causal Leakage Prevention</h2>
+  <p>During out-of-sample replay, the agent traverses historical decision points chronologically. Without safeguards, memory retrieval could access episodes recorded <em>after</em> the simulated timestamp — letting the agent "remember the future."</p>
+  <p>All 8 memory retrieval paths accept an optional <code>query_ts</code> parameter. When provided, each path applies a strict less-than filter:</p>
+  <table>
+    <thead>
+      <tr><th>Retrieval Site</th><th>Filter</th><th>Column</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>EpisodicMemory._bq_keyword_search()</td><td><code>AND ts &lt; @query_ts</code></td><td>ts</td></tr>
+      <tr><td>EpisodicMemory.get_recent()</td><td><code>WHERE ts &lt; @query_ts</code></td><td>ts</td></tr>
+      <tr><td>EpisodicMemory._local_search()</td><td><code>ep.timestamp &lt; query_ts</code></td><td>timestamp</td></tr>
+      <tr><td>SemanticMemory._bq_search()</td><td><code>AND first_observed &lt; @query_ts</code></td><td>first_observed</td></tr>
+      <tr><td>SemanticMemory.retrieve_relevant()</td><td><code>fact.first_observed &lt; query_ts</code></td><td>first_observed</td></tr>
+      <tr><td>ProceduralMemory._bq_lookup()</td><td><code>AND last_used &lt; @query_ts</code></td><td>last_used</td></tr>
+      <tr><td>ProceduralMemory.get_best_sequences()</td><td><code>record.last_used &lt; query_ts</code></td><td>last_used</td></tr>
+      <tr><td>compare_to_history skill</td><td><code>AND trade_date &lt; @query_ts</code></td><td>trade_date</td></tr>
+    </tbody>
+  </table>
+  <p>Enforced by <strong>16 dedicated tests</strong> in <code>test_causal_leakage.py</code> that verify local cache filtering, backward compatibility, and BQ query source code analysis.</p>
+
+  <h2>Reward Function Design</h2>
+  <h3>Multi-Objective Formulation</h3>
+  <pre><code>R_total = R_directional + α·R_task + β·R_memory + γ·R_consistency + δ·R_retention − λ·C_cost + penalties</code></pre>
+  <p>Default weights: α = 1.0, β = 0.5, γ = 0.3, δ = 0.2, λ = 0.1</p>
+
+  <table>
+    <thead>
+      <tr><th>Component</th><th>Definition</th><th>Signal Source</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>R_directional</strong></td><td><code>tanh(pnl_realized / 10.0)</code></td><td>Environment — subsequent price movement</td></tr>
+      <tr><td><strong>R_task</strong></td><td>Skill completion quality [0,1]</td><td>LLM judge or heuristic</td></tr>
+      <tr><td><strong>R_memory</strong></td><td>reward_with − reward_without memory</td><td>Counterfactual differential</td></tr>
+      <tr><td><strong>R_consistency</strong></td><td>Directional agreement across turns</td><td>Internal coherence</td></tr>
+      <tr><td><strong>R_retention</strong></td><td>probe_pass_count / probe_total</td><td>Retention probe tests</td></tr>
+      <tr><td><strong>C_cost</strong></td><td><code>clip(cost / $0.50, 0, 1)</code></td><td>API costs</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Penalties</h3>
+  <ul style="color:var(--text2);padding-left:1.5rem;margin-bottom:1.5rem">
+    <li>−0.5 per hallucinated skill (skill name not in registry)</li>
+    <li>−1.0 for position sizes exceeding safety limits (|size| > 100,000 units)</li>
+  </ul>
+
+  <h3>DPO Training Pipeline</h3>
+  <p>Preference pairs are generated from environment feedback (not human annotation): trajectories whose recommended direction aligns with subsequent price movement are preferred. Target base model: Qwen 2.5 7B. Infrastructure is built; execution is deferred pending strategy refinement to ensure the P&amp;L signal carries sufficient edge.</p>
+
+  <h2>Statistical Methodology</h2>
+  <ul style="color:var(--text2);padding-left:1.5rem;margin-bottom:1.5rem">
+    <li>95% confidence intervals via bootstrap resampling (n = 10,000, seed = 42)</li>
+    <li>Pairwise comparisons: Wilcoxon signed-rank test, p &lt; 0.05</li>
+    <li>All models use <code>random_state=42</code> across 22 model constructors</li>
+    <li>Model version: <code>v0.2.0-oos-clean</code></li>
+  </ul>
+
+</div>
+
+<footer>
+  <span>OTM-Agent · Methods</span>
+  <span>Last updated: 2026-05-21</span>
+</footer>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+  localStorage.setItem('theme', html.getAttribute('data-theme'));
+}
+(function() {
+  const saved = localStorage.getItem('theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+})();
+</script>
+</body>
+</html>

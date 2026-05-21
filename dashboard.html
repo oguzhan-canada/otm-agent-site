@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Dashboard — OTM-Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff;
+    --bg2: #fafafa;
+    --bg3: #f4f4f4;
+    --text: #111111;
+    --text2: #555555;
+    --text3: #999999;
+    --border: #e8e8e8;
+    --border2: #d4d4d4;
+    --radius: 6px;
+    --radius-lg: 10px;
+    --accent: #0066CC;
+    --teal: #0d9e75;
+    --blue: #0066CC;
+    --amber: #c47a00;
+    --red: #cc2222;
+    --green: #3a7a00;
+    --ok-bg: #f0f7e6;     --ok-text: #2d6300;
+    --warn-bg: #fff7e6;   --warn-text: #7a4500;
+    --err-bg: #fff0f0;    --err-text: #990000;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111111; --bg2: #1a1a1a; --bg3: #222222;
+      --text: #eeeeee; --text2: #aaaaaa; --text3: #666666;
+      --border: #2a2a2a; --border2: #383838;
+      --accent: #4d9fff;
+      --ok-bg: #182810;   --ok-text: #7dcc44;
+      --warn-bg: #241800; --warn-text: #ffb84d;
+      --err-bg: #220000;  --err-text: #ff7777;
+      --shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem; }
+
+  /* ── Header ── */
+  header {
+    display: flex; align-items: center; gap: 16px;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2.5rem;
+    flex-wrap: wrap;
+  }
+  .header-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--accent); display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .header-icon svg { width: 16px; height: 16px; fill: #fff; }
+  header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  header p { font-size: 15px; font-weight: 500; color: var(--text2); margin-left: auto; letter-spacing: -0.1px; }
+
+  /* ── About ── */
+  .about {
+    border-left: 2px solid var(--border2);
+    padding: 0.85rem 1.25rem;
+    margin-bottom: 2.5rem;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text2);
+  }
+  .about strong { color: var(--text); font-weight: 500; }
+
+  /* ── Hub grid ── */
+  .hub-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 2.5rem;
+  }
+  @media(max-width:700px){ .hub-grid { grid-template-columns: repeat(2,1fr); } }
+  .hub-card { background: var(--bg); padding: 1.25rem 1.25rem 1rem; }
+  .hub-name { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .hub-cap { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 500; color: var(--text); letter-spacing: -0.5px; }
+  .hub-unit { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .hub-role { font-size: 11.5px; color: var(--text2); margin-top: 8px; line-height: 1.55; }
+  .hub-badge {
+    display: inline-block; font-size: 10px; padding: 2px 8px;
+    border-radius: 20px; font-weight: 500; margin-top: 10px;
+    border: 1px solid currentColor; opacity: 0.75;
+  }
+  .hub-badge-blue   { color: var(--accent); }
+  .hub-badge-green  { color: var(--teal); }
+  .hub-badge-amber  { color: var(--amber); }
+  .hub-badge-purple { color: #7755cc; }
+
+  /* ── Section label ── */
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text3);
+    margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::before {
+    content: ''; display: block;
+    width: 16px; height: 1px; background: var(--border2);
+  }
+
+  /* ── Metrics ── */
+  .metric-grid {
+    display: grid; grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    overflow: hidden; margin-bottom: 2.5rem;
+  }
+  @media(max-width:640px){ .metric-grid { grid-template-columns: repeat(2,1fr); } }
+  .metric { background: var(--bg); padding: 1.25rem 1.25rem 1rem; }
+  .metric-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .metric-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 26px; font-weight: 500; color: var(--text);
+    letter-spacing: -0.5px; line-height: 1;
+  }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* ── Layout ── */
+  .two-col {
+    display: grid; grid-template-columns: minmax(0,1.35fr) minmax(0,1fr);
+    gap: 1.5rem; margin-bottom: 2rem; align-items: stretch;
+  }
+  .two-col > div { display: flex; flex-direction: column; }
+  @media(max-width:760px){ .two-col { grid-template-columns: 1fr; } }
+
+  /* ── Card ── */
+  .card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .card-title {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    margin-bottom: 1rem; letter-spacing: -0.1px;
+  }
+  .obs-date { font-size: 11px; color: var(--text3); margin-bottom: 1rem; }
+
+  /* ── Table headers ── */
+  .col-head {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 6px; margin-bottom: 2px;
+  }
+  .ch {
+    font-size: 10px; font-weight: 600; color: var(--text3);
+    text-transform: uppercase; letter-spacing: .07em;
+  }
+
+  /* ── Tank rows ── */
+  .tank-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 6px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background .12s; border-radius: 4px;
+  }
+  .tank-row:last-child { border-bottom: none; }
+  .tank-row:hover { background: var(--bg2); }
+  .tank-row.active { background: var(--bg2); outline: 1.5px solid var(--accent); outline-offset: -1px; }
+  .tank-id { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; color: var(--text); width: 76px; flex-shrink: 0; }
+  .tank-region { font-size: 11px; color: var(--text3); width: 68px; flex-shrink: 0; }
+  .bar-wrap { flex: 1; background: var(--bg3); border-radius: 2px; height: 5px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; min-width: 3px; }
+  .tank-db  { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text2); width: 60px; text-align: right; flex-shrink: 0; }
+  .tank-pct { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--text); width: 44px; text-align: right; flex-shrink: 0; }
+
+  /* ── Badges ── */
+  .badge {
+    font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    font-weight: 500; flex-shrink: 0; white-space: nowrap;
+  }
+  .badge-ok   { background: var(--ok-bg);   color: var(--ok-text);   }
+  .badge-ins  { background: var(--warn-bg);  color: var(--warn-text); }
+  .badge-anom { background: var(--err-bg);   color: var(--err-text);  }
+
+  /* ── Region rows ── */
+  .region-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 6px; border-bottom: 1px solid var(--border);
+  }
+  .region-row:last-child { border-bottom: none; }
+  .region-name { font-size: 12px; font-weight: 500; color: var(--text); width: 80px; flex-shrink: 0; }
+  .gauge-wrap { flex: 1; background: var(--bg3); border-radius: 2px; height: 6px; overflow: hidden; }
+  .gauge-fill { height: 100%; border-radius: 2px; min-width: 3px; }
+  .region-val  { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text2); width: 60px; text-align: right; flex-shrink: 0; }
+  .region-pct  { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--text); width: 44px; text-align: right; flex-shrink: 0; }
+  .region-imgs { font-size: 11px; color: var(--text3); width: 50px; text-align: right; flex-shrink: 0; }
+
+  /* ── Status ── */
+  .status-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot-ok { background: #22aa44; } .dot-ins { background: #cc8800; } .dot-anom { background: #cc2222; }
+
+  /* ── Legend ── */
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text2); margin-bottom: 5px; }
+  .legend-sw { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── Charts ── */
+  .chart-wrap { position: relative; width: 100%; height: 200px; margin-top: 1rem; }
+  .chart-wrap-tall { position: relative; width: 100%; height: 260px; margin-top: 1rem; }
+
+  /* ── Misc ── */
+  .refresh { font-size: 11px; color: var(--text3); text-align: right; margin-top: .5rem; }
+  .note {
+    font-size: 11.5px; color: var(--text3); line-height: 1.7;
+    margin-top: 1rem; padding-top: .85rem;
+    border-top: 1px solid var(--border);
+  }
+  .note strong { color: var(--text2); font-weight: 500; }
+
+  /* ── Banners ── */
+  .banner-warn  { background: var(--warn-bg); color: var(--warn-text); border-radius: var(--radius); padding: .7rem 1rem; font-size: 12px; margin-top: .75rem; line-height: 1.6; }
+  .banner-error { background: var(--err-bg);  color: var(--err-text);  border-radius: var(--radius); padding: .6rem 1rem; font-size: 12.5px; margin-bottom: .75rem; }
+  .banner-stale { background: var(--warn-bg); color: var(--warn-text); border-radius: var(--radius); padding: .7rem 1rem; font-size: 12px; margin-bottom: 1.5rem; line-height: 1.6; }
+
+  /* ── Trend controls ── */
+  .trend-panel { margin-bottom: 1.5rem; }
+  .trend-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .trend-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .selected-tank { font-size: 12px; color: var(--accent); font-weight: 500; }
+  .unit-toggle {
+    display: flex; border: 1px solid var(--border2);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .unit-btn {
+    padding: 4px 12px; font-size: 11.5px; font-family: 'Inter', sans-serif;
+    background: var(--bg); color: var(--text3); border: none; cursor: pointer;
+    transition: background .1s, color .1s;
+  }
+  .unit-btn.active { background: var(--text); color: var(--bg); }
+  .days-select {
+    font-size: 12px; padding: 4px 8px; border-radius: var(--radius);
+    border: 1px solid var(--border2); background: var(--bg); color: var(--text);
+    cursor: pointer; font-family: 'Inter', sans-serif;
+  }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 3rem; font-size: 11px; color: var(--text3);
+    border-top: 1px solid var(--border); padding-top: 1.25rem;
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px;
+  }
+</style>
+</head>
+<body>
+<nav style="position:sticky;top:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--border);backdrop-filter:blur(12px)">
+  <div style="max-width:1100px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;height:48px;gap:8px">
+    <a href="index.html" style="font-weight:600;font-size:15px;color:var(--text);text-decoration:none;margin-right:1.5rem;letter-spacing:-0.3px">OTM<span style="color:#4d9fff">-Agent</span></a>
+    <div style="display:flex;gap:4px;flex-wrap:wrap">
+      <a href="index.html" style="font-size:13px;color:var(--text3);text-decoration:none;padding:6px 10px;border-radius:6px">Home</a>
+      <a href="architecture.html" style="font-size:13px;color:var(--text3);text-decoration:none;padding:6px 10px;border-radius:6px">Architecture</a>
+      <a href="methods.html" style="font-size:13px;color:var(--text3);text-decoration:none;padding:6px 10px;border-radius:6px">Methods</a>
+      <a href="benchmarks.html" style="font-size:13px;color:var(--text3);text-decoration:none;padding:6px 10px;border-radius:6px">Benchmarks</a>
+      <a href="dashboard.html" style="font-size:13px;color:var(--text);text-decoration:none;padding:6px 10px;border-radius:6px;background:var(--bg2)">Dashboard</a>
+      <a href="audit.html" style="font-size:13px;color:var(--text3);text-decoration:none;padding:6px 10px;border-radius:6px">Audit</a>
+      <a href="changelog.html" style="font-size:13px;color:var(--text3);text-decoration:none;padding:6px 10px;border-radius:6px">Changelog</a>
+      <a href="about.html" style="font-size:13px;color:var(--text3);text-decoration:none;padding:6px 10px;border-radius:6px">About</a>
+    </div>
+    <div style="margin-left:auto">
+      <a href="https://github.com/oguzhan-canada/otm-agent-site" style="color:var(--text3);font-size:13px;text-decoration:none">GitHub</a>
+    </div>
+  </div>
+</nav>
+<div class="page">
+
+  <header>
+    <div class="header-icon">
+      <svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 2a5 5 0 110 10A5 5 0 018 3zm0 2a3 3 0 100 6 3 3 0 000-6z"/></svg>
+    </div>
+    <h1>Oil Tank SAR Monitor</h1>
+    <p>Sentinel-1 · Cushing · Rotterdam · Fujairah · Singapore</p>
+  </header>
+
+  <div class="about">
+    <strong>Why these four hubs?</strong> Cushing, Rotterdam, Fujairah, and Singapore sit at the intersection of every major oil pricing region on earth. <strong>Cushing</strong> (Oklahoma, USA) holds ~91 million barrels of storage — the world's largest tank farm — and is the physical delivery point for the WTI crude futures contract, the most traded commodity benchmark in the world. <strong>Rotterdam</strong> (Netherlands) anchors Europe's ARA refinery cluster with ~19 million cubic meters of storage and sets Brent-related price benchmarks for Atlantic Basin trade. <strong>Fujairah</strong> (UAE) is the only major terminal outside the Strait of Hormuz, holding ~42 million barrels and exporting over 1.7 million barrels per day — roughly 1.7% of all global daily oil demand — making it a strategic bypass route for Middle East exports. <strong>Singapore</strong> is Asia's undisputed oil hub, the world's largest bunkering port, processing over 1.5 million barrels per day through Jurong Island. Together, these four locations physically underpin the WTI, Brent, and Asian benchmark pricing chains. Monitoring their radar signal provides a daily, independent window into global supply and demand balance — with no reliance on self-reported industry data.
+  </div>
+
+  <div class="hub-grid">
+    <div class="hub-card">
+      <div class="hub-name">Cushing, USA</div>
+      <div class="hub-cap">91M bbl</div>
+      <div class="hub-unit">storage capacity</div>
+      <div class="hub-role">WTI futures delivery point since 1983. "Pipeline Crossroads of the World."</div>
+      <span class="hub-badge hub-badge-blue">WTI benchmark</span>
+    </div>
+    <div class="hub-card">
+      <div class="hub-name">Rotterdam, Netherlands</div>
+      <div class="hub-cap">120M bbl</div>
+      <div class="hub-unit">Europe's largest port</div>
+      <div class="hub-role">ARA hub anchors Brent pricing for Atlantic Basin crude imports.</div>
+      <span class="hub-badge hub-badge-green">Brent / ARA hub</span>
+    </div>
+    <div class="hub-card">
+      <div class="hub-name">Fujairah, UAE</div>
+      <div class="hub-cap">42M bbl</div>
+      <div class="hub-unit">outside Strait of Hormuz</div>
+      <div class="hub-role">Only major terminal bypassing Hormuz. Exports ~1.7M bbl/day.</div>
+      <span class="hub-badge hub-badge-amber">Hormuz bypass</span>
+    </div>
+    <div class="hub-card">
+      <div class="hub-name">Singapore</div>
+      <div class="hub-cap">94M bbl</div>
+      <div class="hub-unit">Asia's #1 hub</div>
+      <div class="hub-role">World's largest bunkering port. Processes 1.5M bbl/day.</div>
+      <span class="hub-badge hub-badge-purple">Asian benchmark</span>
+    </div>
+  </div>
+
+  <div id="error-banner" style="display:none" class="banner-error"></div>
+
+  <div class="section-label">Latest snapshot</div>
+  <div class="metric-grid">
+    <div class="metric"><div class="metric-label">Observation date</div><div class="metric-value" id="m-date">—</div><div class="metric-sub">most recent run</div></div>
+    <div class="metric"><div class="metric-label">Tanks sampled</div><div class="metric-value" id="m-tanks">—</div><div class="metric-sub">of 13 active</div></div>
+    <div class="metric"><div class="metric-label">Regions covered</div><div class="metric-value" id="m-regions">—</div><div class="metric-sub">all 4 hubs</div></div>
+    <div class="metric"><div class="metric-label">Anomalies flagged</div><div class="metric-value" id="m-anom">—</div><div class="metric-sub">|z-score| &gt; 2.0</div></div>
+  </div>
+
+  <div id="stale-banner" style="display:none" class="banner-stale"></div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:.75rem">
+      <span class="card-title" style="margin-bottom:0">Oil price vs. average tank signal</span>
+      <span id="corr-label" style="font-size:11.5px;color:var(--text3)"></span>
+      <div style="margin-left:auto">
+        <div class="unit-toggle">
+          <button class="unit-btn active" id="btn-corr-ts" onclick="setCorrView('ts')">time series</button>
+          <button class="unit-btn" id="btn-corr-sc" onclick="setCorrView('scatter')">scatter</button>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:.75rem;font-size:11.5px;color:var(--text3)">
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:20px;height:2px;background:#c47a00;display:inline-block;border-radius:2px"></span>WTI crude (USD/bbl)</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#0066CC;display:inline-block"></span>Avg dB</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#0d9e75;display:inline-block"></span>Avg fill est.%</span>
+    </div>
+    <div class="chart-wrap-tall"><canvas id="corrChart"></canvas></div>
+    <div class="note">
+      <strong>What this shows:</strong> WTI crude oil spot price (EIA public data, no weekends/holidays) plotted against the daily average radar signal across all 13 monitored tanks. <strong>Time series</strong> view uses dual y-axes: left = USD/bbl, right = dB. <strong>Scatter</strong> view plots price on x-axis vs. fill % on y-axis to reveal correlation directly. The Pearson coefficient (r) quantifies linear relationship: &plusmn;1 = perfect, 0 = none. A negative r between price and fill % would confirm the economic hypothesis that rising prices coincide with inventory draws. This analysis becomes more meaningful as observation days accumulate.
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">Today's signal summary</div>
+    <div id="daily-summary" style="font-size:13px;line-height:1.8;color:var(--text2)">Loading…</div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">VV backscatter range by region — current day</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:.75rem">Full spread from minimum to maximum radar return across each hub. Bar shows the range; dot marks the mean. Wider bar = more variation between tanks.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:.5rem;font-size:11.5px;color:var(--text3)">
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:22px;height:8px;border-radius:2px;background:rgba(196,122,0,0.2);border:1px solid #c47a00;display:inline-block"></span>VV range (min → max)</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#c47a00;display:inline-block"></span>Mean VV</span>
+    </div>
+    <div class="chart-wrap"><canvas id="regionChart"></canvas></div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">Region average signal</div>
+    <div class="col-head" style="gap:8px">
+      <span class="ch" style="width:80px">region</span>
+      <span class="ch" style="flex:1">signal</span>
+      <span class="ch" style="width:60px;text-align:right">dB</span>
+      <span class="ch" style="width:44px;text-align:right">est.%</span>
+      <span class="ch" style="width:50px;text-align:right">images</span>
+    </div>
+    <div id="region-list"><div style="font-size:12px;color:var(--text3)">Loading...</div></div>
+    <div class="refresh">Updates daily at 02:00 UTC</div>
+    <div class="note">
+      <strong>How to read this table:</strong> Each row summarises the average radar return across all tanks in that hub. The <strong>dB</strong> value is the mean VV backscatter strength &mdash; a less negative number (e.g. &minus;8 dB) means stronger radar return, typically indicating smoother, fuller tank surfaces. The <strong>est.%</strong> maps this signal onto a 0&ndash;100% scale relative to the expected range (&minus;32 to &minus;5 dB). The <strong>images</strong> column shows how many Sentinel-1 satellite passes were captured in the 7-day window &mdash; more images means a more reliable average. Once 3+ days of history accumulate, est.% will switch from signal-range approximation to a baseline-calibrated fill proxy that compares each hub against its own history.
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">Per-tank radar signal</div>
+    <div class="obs-date" id="tank-date">Loading...</div>
+    <div class="col-head">
+      <span class="ch" style="width:76px">tank</span>
+      <span class="ch" style="width:68px">region</span>
+      <span class="ch" style="flex:1">signal</span>
+      <span class="ch" style="width:60px;text-align:right">dB</span>
+      <span class="ch" style="width:44px;text-align:right">est.%</span>
+    </div>
+    <div id="tank-list"></div>
+    <div class="banner-warn" id="building-note" style="display:none">
+      <strong>What does "building" mean?</strong> Each tank needs at least 3 observation days before the system can calculate its personal fill estimate. Think of it like a fitness tracker that needs a week of readings before it can tell you if today's heart rate is "high for you." Right now we are collecting baseline data — the fill % estimate will appear automatically once enough days have accumulated.
+    </div>
+    <div class="note">
+      <strong>How to read the bars:</strong> The satellite sends radar pulses at the tank and measures how much bounces back. A <strong>fuller tank</strong> has smooth oil on its surface — like a calm pond — which reflects radar strongly back to the satellite. An <strong>emptier tank</strong> has exposed metal walls and internal equipment that scatter the radar in all directions, so less bounces back. The dB number is the raw radar strength (more negative = weaker return). The estimated % translates this into an approximate fill level relative to each tank's own history — not an absolute volume measurement.
+    </div>
+    <div style="margin-top:.85rem;padding-top:.75rem;border-top:1px solid var(--border)">
+      <div style="font-size:10.5px;color:var(--text3);margin-bottom:.65rem">* relative % from signal range — calibrated fill % appears after 3+ days</div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;flex-shrink:0">Badge guide</div>
+        <div class="legend-item" style="margin-bottom:0"><div class="legend-sw" style="background:#3a7a00"></div>Above-average fill (est. &gt;60%)</div>
+        <div class="legend-item" style="margin-bottom:0"><div class="legend-sw" style="background:#0d9e75"></div>Near baseline fill (40–60%)</div>
+        <div class="legend-item" style="margin-bottom:0"><div class="legend-sw" style="background:#0066CC"></div>Below-average fill (est. &lt;40%)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="trend-panel">
+    <div class="card">
+      <div class="trend-header">
+        <span class="trend-title">Daily trend</span>
+        <span style="color:var(--text3);font-size:13px">—</span>
+        <span class="selected-tank" id="selected-label">select a tank above to see its history</span>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+          <select class="days-select" id="days-select">
+            <option value="14">14 days</option>
+            <option value="30" selected>30 days</option>
+            <option value="60">60 days</option>
+            <option value="90">90 days</option>
+          </select>
+          <div class="unit-toggle">
+            <button class="unit-btn active" id="btn-pct" onclick="setUnit('pct')">fill %</button>
+            <button class="unit-btn" id="btn-db" onclick="setUnit('db')">dB</button>
+            <button class="unit-btn" id="btn-both" onclick="setUnit('both')">both</button>
+          </div>
+        </div>
+      </div>
+      <div class="chart-wrap-tall"><canvas id="trendChart"></canvas></div>
+      <div class="note" style="margin-top:.75rem">
+        <strong>Fill % (left axis):</strong> estimated fill level relative to the tank's own baseline — above 50% means above-average fill compared to recent history. <strong>dB (right axis):</strong> raw radar backscatter strength — stronger return (less negative) generally means smoother, fuller surface. Both signals update daily after the satellite overpass is processed.
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>GCP: oil-tank-monitoring-123 · Sentinel-1 GRD IW VV via Google Earth Engine · Daily 02:00 UTC</span>
+    <span id="data-note"></span>
+  </footer>
+
+</div>
+<script>
+const API_BASE = "https://otm-api-dev-481921676964.northamerica-northeast1.run.app";
+const REF_MIN = -32, REF_MAX = -5;
+const RCOL = {cushing:'#0066CC', rotterdam:'#0d9e75', fujairah:'#c47a00', singapore:'#7755cc'};
+let currentUnit = 'pct';
+let selectedTank = null;
+let historyData = {};
+let trendChartObj = null;
+let regionChartObj = null;
+let snapshotData = null;
+
+function dedupBy(arr, key) {
+  const seen = new Set();
+  return (arr || []).filter(item => {
+    if (seen.has(item[key])) return false;
+    seen.add(item[key]);
+    return true;
+  });
+}
+function vvToPct(vv) {
+  if (vv === null || vv === undefined) return 0;
+  return Math.max(3, Math.min(100, ((vv - REF_MIN) / (REF_MAX - REF_MIN)) * 100));
+}
+function barColor(cur) {
+  if (!cur) return '#c47a00';
+  if (cur.is_anomaly) return '#cc2222';
+  if (cur.fill_proxy === null) return '#c47a00';
+  return cur.fill_proxy > 0.6 ? '#3a7a00' : cur.fill_proxy < 0.4 ? '#0066CC' : '#0d9e75';
+}
+function badgeHtml(cur) {
+  if (!cur) return '<span class="badge badge-ins">building</span>';
+  if (cur.is_anomaly) return '<span class="badge badge-anom">anomaly</span>';
+  if (cur.fill_proxy !== null) return `<span class="badge badge-ok">${Math.round(cur.fill_proxy*100)}%</span>`;
+  return '<span class="badge badge-ins">building</span>';
+}
+function estPct(t, cur) {
+  if (cur && cur.fill_proxy !== null) return Math.round(cur.fill_proxy * 100) + '%';
+  if (t.mean_vv === null) return '—';
+  return Math.round(vvToPct(t.mean_vv)) + '%*';
+}
+function pctColor(cur) { return 'var(--text)'; }
+
+function renderSummary(obsDate, tanks, curated, regions) {
+  const el = document.getElementById('daily-summary');
+  if (!obsDate || tanks.length === 0) { el.textContent = 'No data available yet.'; return; }
+  const ageDays = Math.floor((Date.now() - new Date(obsDate + 'T00:00:00Z')) / 86400000);
+  const dateLabel = ageDays === 0 ? 'today' : ageDays === 1 ? 'yesterday' : `${ageDays} days ago`;
+  const regionNames = { cushing: 'Cushing', rotterdam: 'Rotterdam', fujairah: 'Fujairah', singapore: 'Singapore' };
+  const regionSummaries = regions.map(r => {
+    const label = regionNames[r.region_code] || r.region_code;
+    const spread = r.max_vv !== null && r.min_vv !== null ? (r.max_vv - r.min_vv).toFixed(1) : '?';
+    return `${label} (mean ${r.mean_vv !== null ? r.mean_vv.toFixed(1) : '?'} dB, range ${spread} dB)`;
+  });
+  const validRegions = regions.filter(r => r.mean_vv !== null);
+  const strongest = validRegions.length ? validRegions.reduce((a, b) => a.mean_vv > b.mean_vv ? a : b) : null;
+  const weakest   = validRegions.length ? validRegions.reduce((a, b) => a.mean_vv < b.mean_vv ? a : b) : null;
+  const hasProxy   = curated.some(c => c.fill_proxy !== null);
+  const anomalies  = curated.filter(c => c.is_anomaly);
+  const building   = curated.filter(c => c.fill_proxy === null && c.status === 'INSUFFICIENT_HISTORY');
+  const okTanks    = curated.filter(c => c.status === 'OK');
+  const highFill   = okTanks.filter(c => c.fill_proxy > 0.6);
+  const lowFill    = okTanks.filter(c => c.fill_proxy < 0.4);
+  const parts = [];
+  parts.push(`<strong>Observation ${dateLabel} (${obsDate}).</strong> Sentinel-1 sampled ${tanks.length} tanks across ${regions.length} hubs.`);
+  if (regionSummaries.length) parts.push(`Regional radar returns: ${regionSummaries.join('; ')}.`);
+  if (strongest && weakest && strongest.region_code !== weakest.region_code) {
+    parts.push(`<strong>${regionNames[strongest.region_code] || strongest.region_code}</strong> recorded the strongest mean backscatter (${strongest.mean_vv.toFixed(1)} dB), suggesting relatively fuller or smoother surfaces. <strong>${regionNames[weakest.region_code] || weakest.region_code}</strong> was weakest (${weakest.mean_vv.toFixed(1)} dB).`);
+  }
+  if (!hasProxy) {
+    parts.push(`Fill-proxy estimates are still <strong>building baseline</strong> — all ${building.length} tanks need at least 3 days of observations before relative fill estimates are available. Raw dB values are shown as approximate % in the table.`);
+  } else {
+    if (highFill.length) parts.push(`${highFill.length} tank${highFill.length > 1 ? 's' : ''} showing <strong>above-average fill</strong> (&gt;60%): ${highFill.map(c => c.tank_id).join(', ')}.`);
+    if (lowFill.length)  parts.push(`${lowFill.length} tank${lowFill.length > 1 ? 's' : ''} showing <strong>below-average fill</strong> (&lt;40%): ${lowFill.map(c => c.tank_id).join(', ')}.`);
+    if (anomalies.length) parts.push(`⚠ <strong>${anomalies.length} anomal${anomalies.length > 1 ? 'ies' : 'y'} detected</strong> (|z-score| &gt; 2.0): ${anomalies.map(c => c.tank_id).join(', ')} — unusually large change vs. baseline.`);
+    else parts.push('No anomalies detected — all signals within normal range.');
+  }
+  if (ageDays > 2) parts.push(`<em style="color:var(--text3)">Note: pipeline may not have run since ${obsDate} — check Cloud Run scheduler.</em>`);
+  el.innerHTML = parts.join(' ');
+}
+
+function renderSnapshot(data) {
+  snapshotData = data;
+  const tanks   = dedupBy(data.tank_features,  'tank_id');
+  const curated = dedupBy(data.curated,         'tank_id');
+  const regions = dedupBy(data.region_features, 'region_code');
+  const rSignal = dedupBy(data.region_signal,   'region_code');
+  document.getElementById('m-date').textContent = data.obs_date || '—';
+  document.getElementById('m-tanks').textContent = tanks.filter(t => t.status === 'OK').length;
+  document.getElementById('m-regions').textContent = new Set(tanks.map(t => t.region_code)).size;
+  document.getElementById('m-anom').textContent = curated.filter(c => c.is_anomaly).length;
+  document.getElementById('tank-date').textContent = 'Observation date: ' + (data.obs_date || '—');
+  const staleBanner = document.getElementById('stale-banner');
+  if (data.obs_date) {
+    const ageDays = Math.floor((Date.now() - new Date(data.obs_date + 'T00:00:00Z')) / 86400000);
+    if (ageDays > 2) {
+      staleBanner.style.display = 'block';
+      staleBanner.textContent = `⚠ Data is ${ageDays} day${ageDays !== 1 ? 's' : ''} old (last observation: ${data.obs_date}). The pipeline may not have run recently — check Cloud Run job status or trigger it manually.`;
+    } else { staleBanner.style.display = 'none'; }
+  }
+  renderSummary(data.obs_date, tanks, curated, regions);
+  const hasProxy = curated.some(c => c.fill_proxy !== null);
+  const hasBuilding = curated.some(c => c.fill_proxy === null);
+  document.getElementById('building-note').style.display = hasBuilding ? 'block' : 'none';
+  const tankList = document.getElementById('tank-list');
+  tankList.innerHTML = tanks.map(t => {
+    const cur = curated.find(c => c.tank_id === t.tank_id);
+    const pct = vvToPct(t.mean_vv);
+    const dbLabel = t.mean_vv !== null ? t.mean_vv.toFixed(1) + ' dB' : '—';
+    return `<div class="tank-row" onclick="selectTank('${t.tank_id}')" id="row-${t.tank_id}" role="button" tabindex="0" aria-label="Select tank ${t.tank_id}">
+      <span class="tank-id">${t.tank_id}</span>
+      <span class="tank-region">${t.region_code}</span>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${pct.toFixed(1)}%;background:${barColor(cur)}"></div></div>
+      <span class="tank-db">${dbLabel}</span>
+      <span class="tank-pct">${estPct(t, cur)}</span>
+    </div>`;
+  }).join('');
+
+  const regionList = document.getElementById('region-list');
+  const showSignal = rSignal.length > 0;
+  const rows = showSignal ? rSignal : regions;
+  regionList.innerHTML = rows.map(r => {
+    const code = r.region_code;
+    const meanVv = showSignal ? null : r.mean_vv;
+    const fillProxy = showSignal ? r.avg_fill_proxy : null;
+    const dbLabel = meanVv !== null ? meanVv.toFixed(1) : (r.mean_vv !== null && r.mean_vv !== undefined ? r.mean_vv.toFixed(1) : '\u2014');
+    const estLabel = fillProxy !== null ? Math.round(fillProxy * 100) + '%' : (meanVv !== null ? Math.round(vvToPct(meanVv)) + '%*' : '\u2014');
+    const pct = fillProxy !== null ? Math.max(4, Math.round(fillProxy * 100)) : (meanVv !== null ? vvToPct(meanVv).toFixed(1) : 0);
+    const imgCount = r.image_count || (showSignal ? '' : '?');
+    return `<div class="region-row">
+      <span class="region-name">${code}</span>
+      <div class="gauge-wrap"><div class="gauge-fill" style="width:${pct}%;background:${RCOL[code]||'#888'}"></div></div>
+      <span class="region-val">${dbLabel} dB</span>
+      <span class="region-pct">${estLabel}</span>
+      <span class="region-imgs">${imgCount ? imgCount + ' imgs' : '\u2014'}</span>
+    </div>`;
+  }).join('') + (!showSignal ? `<div style="font-size:10.5px;color:var(--text3);margin-top:.65rem">Fill % appears from day 3 \u2014 showing radar signal for now</div>` : '');
+
+  if (regionChartObj) regionChartObj.destroy();
+  regionChartObj = new Chart(document.getElementById('regionChart'), {
+    type: 'bar',
+    data: {
+      labels: regions.map(r => r.region_code),
+      datasets: [
+        { label: 'VV range (min → max)', data: regions.map(r => [r.min_vv, r.max_vv]), backgroundColor: 'rgba(196,122,0,0.18)', borderColor: '#c47a00', borderWidth: 1, borderSkipped: false },
+        { label: 'Mean VV', type: 'scatter', data: regions.map((r, i) => ({ x: i, y: r.mean_vv })), backgroundColor: '#c47a00', borderColor: '#fff', borderWidth: 1.5, pointRadius: 5, pointHoverRadius: 7 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => { if (ctx.dataset.type === 'scatter') return `Mean: ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) : '?'} dB`; const [lo, hi] = ctx.raw; if (lo === null || hi === null) return 'No data'; return `Range: ${lo.toFixed(1)} → ${hi.toFixed(1)} dB`; } } } },
+      scales: { x: { ticks: { font: { size: 14, family: 'Inter', weight: '600' } }, grid: { display: false } }, y: { ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { color: 'rgba(128,128,128,0.08)' } } }
+    }
+  });
+}
+
+function setUnit(unit) {
+  currentUnit = unit;
+  ['pct','db','both'].forEach(u => document.getElementById('btn-' + u).classList.toggle('active', u === unit));
+  if (selectedTank) drawTrend(selectedTank);
+}
+function selectTank(tankId) {
+  document.querySelectorAll('.tank-row').forEach(r => r.classList.remove('active'));
+  const row = document.getElementById('row-' + tankId);
+  if (row) row.classList.add('active');
+  selectedTank = tankId;
+  document.getElementById('selected-label').textContent = tankId;
+  drawTrend(tankId);
+}
+function drawTrend(tankId) {
+  const days = document.getElementById('days-select').value;
+  const history = historyData[tankId];
+  if (!history || history.length === 0) { document.getElementById('selected-label').textContent = tankId + ' — no history yet'; return; }
+  const hasAnyProxy = history.some(h => h.fill_proxy !== null);
+  let effectiveUnit = currentUnit;
+  if (!hasAnyProxy && currentUnit === 'pct') effectiveUnit = 'db';
+  const labels = history.map(h => h.obs_date);
+  const dbVals = history.map(h => h.mean_vv !== null ? parseFloat(h.mean_vv.toFixed(2)) : null);
+  const pctVals = history.map(h => h.fill_proxy !== null ? Math.round(h.fill_proxy * 100) : null);
+  const datasets = [];
+  if (effectiveUnit === 'db' || effectiveUnit === 'both') {
+    datasets.push({ label: 'Mean VV (dB)', data: dbVals, borderColor: '#0066CC', backgroundColor: 'rgba(0,102,204,0.06)', tension: 0.3, pointRadius: 3, pointHoverRadius: 5, fill: effectiveUnit === 'db', yAxisID: effectiveUnit === 'both' ? 'ydb' : 'y', spanGaps: true });
+  }
+  if (effectiveUnit === 'pct' || effectiveUnit === 'both') {
+    datasets.push({ label: 'Fill estimate (%)', data: pctVals, borderColor: '#0d9e75', backgroundColor: 'rgba(13,158,117,0.06)', tension: 0.3, pointRadius: 3, pointHoverRadius: 5, fill: effectiveUnit === 'pct', yAxisID: effectiveUnit === 'both' ? 'ypct' : 'y', spanGaps: true });
+  }
+  const scales = {};
+  if (effectiveUnit === 'both') {
+    scales.ydb = { type: 'linear', position: 'right', title: { display: true, text: 'dB', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { color: 'rgba(128,128,128,0.07)' } };
+    scales.ypct = { type: 'linear', position: 'left', min: 0, max: 100, title: { display: true, text: 'fill %', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(128,128,128,0.08)' } };
+  } else if (effectiveUnit === 'pct') {
+    scales.y = { min: 0, max: 100, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(128,128,128,0.08)' } };
+  } else {
+    scales.y = { ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { color: 'rgba(128,128,128,0.08)' } };
+  }
+  scales.x = { ticks: { font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 10 }, grid: { display: false } };
+  if (trendChartObj) trendChartObj.destroy();
+  trendChartObj = new Chart(document.getElementById('trendChart'), {
+    type: 'line', data: { labels, datasets },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: datasets.length > 1, labels: { font: { size: 11 }, boxWidth: 10 } } }, scales }
+  });
+}
+document.getElementById('days-select').addEventListener('change', () => { if (selectedTank) loadHistory(parseInt(document.getElementById('days-select').value)); });
+
+async function loadHistory(days) {
+  try {
+    const resp = await fetch(`${API_BASE}/history?days=${days}`);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    historyData = data.tank_history || {};
+    if (selectedTank && historyData[selectedTank]) drawTrend(selectedTank);
+  } catch (e) { console.warn('History fetch failed:', e.message); }
+}
+async function loadSnapshot() {
+  try {
+    const resp = await fetch(`${API_BASE}/data`);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    document.getElementById('data-note').textContent = 'Live · ' + (data.generated_at || '').slice(0, 16) + ' UTC';
+    renderSnapshot(data);
+  } catch (e) {
+    document.getElementById('error-banner').style.display = 'block';
+    document.getElementById('error-banner').textContent = 'Could not reach API (' + e.message + '). Showing seed data.';
+    document.getElementById('data-note').textContent = 'Offline — showing seed data';
+    renderSnapshot(SEED);
+  }
+}
+
+const SEED = {
+  obs_date: "2026-04-12",
+  tank_features: [
+    {tank_id:"cus_n_t01",region_code:"cushing",  mean_vv:-15.09,std_vv:2.12,status:"OK"},
+    {tank_id:"cus_n_t02",region_code:"cushing",  mean_vv:-13.05,std_vv:3.26,status:"OK"},
+    {tank_id:"cus_s_t01",region_code:"cushing",  mean_vv:-16.45,std_vv:2.93,status:"OK"},
+    {tank_id:"cus_s_t02",region_code:"cushing",  mean_vv:-14.69,std_vv:3.24,status:"OK"},
+    {tank_id:"fuj_fn_t01",region_code:"fujairah",mean_vv:-7.99, std_vv:5.01,status:"OK"},
+    {tank_id:"fuj_fn_t02",region_code:"fujairah",mean_vv:-21.84,std_vv:3.74,status:"OK"},
+    {tank_id:"fuj_fs_t01",region_code:"fujairah",mean_vv:-25.92,std_vv:3.64,status:"OK"},
+    {tank_id:"rot_bo_t01",region_code:"rotterdam",mean_vv:-9.05,std_vv:6.47,status:"OK"},
+    {tank_id:"rot_ev_t01",region_code:"rotterdam",mean_vv:-10.79,std_vv:4.35,status:"OK"},
+    {tank_id:"rot_ev_t02",region_code:"rotterdam",mean_vv:-8.30, std_vv:3.43,status:"OK"},
+    {tank_id:"sgp_ju_t01",region_code:"singapore",mean_vv:-18.19,std_vv:6.22,status:"OK"},
+    {tank_id:"sgp_jv_t01",region_code:"singapore",mean_vv:-13.65,std_vv:8.98,status:"OK"},
+    {tank_id:"sgp_jv_t02",region_code:"singapore",mean_vv:-18.59,std_vv:5.78,status:"OK"},
+  ],
+  curated: Array(13).fill(null).map((_,i) => ({
+    tank_id: ["cus_n_t01","cus_n_t02","cus_s_t01","cus_s_t02","fuj_fn_t01","fuj_fn_t02","fuj_fs_t01","rot_bo_t01","rot_ev_t01","rot_ev_t02","sgp_ju_t01","sgp_jv_t01","sgp_jv_t02"][i],
+    region_code: ["cushing","cushing","cushing","cushing","fujairah","fujairah","fujairah","rotterdam","rotterdam","rotterdam","singapore","singapore","singapore"][i],
+    fill_proxy: null, vv_zscore: null, is_anomaly: false, status: "INSUFFICIENT_HISTORY", baseline_weeks: 0
+  })),
+  region_signal: [],
+  region_features: [
+    {region_code:"cushing",   mean_vv:-12.30,min_vv:-22.13,max_vv:-8.50,image_count:1},
+    {region_code:"rotterdam", mean_vv:-7.25, min_vv:-18.64,max_vv:-5.20,image_count:10},
+    {region_code:"fujairah",  mean_vv:-11.49,min_vv:-33.12,max_vv:-7.10,image_count:9},
+    {region_code:"singapore", mean_vv:-23.72,min_vv:-37.20,max_vv:-9.80,image_count:4},
+  ]
+};
+
+let corrChartObj = null, corrView = 'ts', corrJoined = [];
+function setCorrView(view) {
+  corrView = view;
+  ['ts','scatter'].forEach(v => document.getElementById('btn-corr-' + (v === 'ts' ? 'ts' : 'sc')).classList.toggle('active', v === view));
+  if (corrJoined.length) drawCorrChart(corrJoined);
+}
+async function fetchOilPrices(days) {
+  try {
+    const resp = await fetch('https://raw.githubusercontent.com/datasets/oil-prices/master/data/wti-daily.csv');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const text = await resp.text();
+    const lines = text.trim().split('\n').slice(1);
+    const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    const prices = {};
+    for (const line of lines) {
+      const [date, price] = line.split(',');
+      if (date >= cutoff && price) prices[date] = parseFloat(price);
+    }
+    return prices;
+  } catch (e) { console.warn('Oil price fetch failed:', e.message); return {}; }
+}
+function computeDailyAverages(tankHistory) {
+  const byDate = {};
+  for (const tankId in tankHistory) {
+    for (const entry of tankHistory[tankId]) {
+      const d = entry.obs_date;
+      if (!byDate[d]) byDate[d] = { dbVals: [], pctVals: [] };
+      if (entry.mean_vv !== null) {
+        byDate[d].dbVals.push(entry.mean_vv);
+        byDate[d].pctVals.push(entry.fill_proxy !== null ? entry.fill_proxy * 100 : vvToPct(entry.mean_vv));
+      }
+    }
+  }
+  const result = {};
+  for (const d in byDate) {
+    const db = byDate[d].dbVals, pct = byDate[d].pctVals;
+    result[d] = { avgDb: db.length ? db.reduce((a,b)=>a+b,0)/db.length : null, avgPct: pct.length ? pct.reduce((a,b)=>a+b,0)/pct.length : null };
+  }
+  return result;
+}
+function pearsonR(xs, ys) {
+  const n = xs.length;
+  if (n < 3) return null;
+  const mx = xs.reduce((a,b)=>a+b,0)/n, my = ys.reduce((a,b)=>a+b,0)/n;
+  let num=0, dx2=0, dy2=0;
+  for (let i=0;i<n;i++) { const dx=xs[i]-mx, dy=ys[i]-my; num+=dx*dy; dx2+=dx*dx; dy2+=dy*dy; }
+  const denom = Math.sqrt(dx2*dy2);
+  return denom === 0 ? 0 : num/denom;
+}
+function drawCorrChart(joined) {
+  if (corrChartObj) corrChartObj.destroy();
+  if (corrView === 'scatter') {
+    const overlap = joined.filter(d => d.price !== null && d.avgPct !== null);
+    corrChartObj = new Chart(document.getElementById('corrChart'), {
+      type: 'scatter',
+      data: { datasets: [
+        { label: 'Price vs Fill %', data: overlap.map(d => ({ x: d.price, y: d.avgPct })), backgroundColor: '#0d9e75', borderColor: 'rgba(13,158,117,0.4)', pointRadius: 5, pointHoverRadius: 8 },
+        { label: 'Price vs dB', data: overlap.map(d => ({ x: d.price, y: d.avgDb })), backgroundColor: '#0066CC', borderColor: 'rgba(0,102,204,0.4)', pointRadius: 5, pointHoverRadius: 8, yAxisID: 'yDb' }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: true, labels: { font: { size: 11 }, boxWidth: 8 } }, tooltip: { callbacks: { label: (ctx) => { const ds = ctx.dataset.label; return ds.includes('Fill') ? `$${ctx.parsed.x.toFixed(2)}/bbl \u2192 ${ctx.parsed.y.toFixed(1)}% fill` : `$${ctx.parsed.x.toFixed(2)}/bbl \u2192 ${ctx.parsed.y.toFixed(1)} dB`; } } } },
+        scales: { x: { title: { display: true, text: 'Crude oil price (USD/bbl)', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => '$' + v }, grid: { color: 'rgba(128,128,128,0.08)' } }, y: { position: 'left', min: 0, max: 100, title: { display: true, text: 'Average fill (%)', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(128,128,128,0.08)' } }, yDb: { position: 'right', title: { display: true, text: 'Mean VV (dB)', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { display: false } } }
+      }
+    });
+  } else {
+    const labels = joined.map(d => d.date);
+    corrChartObj = new Chart(document.getElementById('corrChart'), {
+      type: 'line',
+      data: { labels, datasets: [
+        { label: 'WTI crude (USD/bbl)', data: joined.map(d => d.price), borderColor: '#c47a00', backgroundColor: 'rgba(196,122,0,0.06)', tension: 0.3, pointRadius: 2, pointHoverRadius: 4, fill: true, yAxisID: 'yPrice', spanGaps: true },
+        { label: 'Avg dB', data: joined.map(d => d.avgDb !== null ? parseFloat(d.avgDb.toFixed(2)) : null), borderColor: '#0066CC', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2, yAxisID: 'yDb', spanGaps: true },
+        { label: 'Avg fill est.%', data: joined.map(d => d.avgPct !== null ? parseFloat(d.avgPct.toFixed(1)) : null), borderColor: '#0d9e75', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2, yAxisID: 'yPct', spanGaps: true }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: true, labels: { font: { size: 11 }, boxWidth: 10 } }, tooltip: { callbacks: { label: (ctx) => { const v = ctx.parsed.y; if (v === null) return ctx.dataset.label + ': N/A'; if (ctx.dataset.yAxisID === 'yPrice') return `WTI: $${v.toFixed(2)}/bbl`; if (ctx.dataset.yAxisID === 'yDb') return `Avg dB: ${v.toFixed(1)} dB`; return `Avg fill: ${v.toFixed(1)}%`; } } } },
+        scales: { x: { ticks: { font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 12 }, grid: { display: false } }, yPrice: { type: 'linear', position: 'left', title: { display: true, text: 'Crude oil price (USD/bbl)', font: { size: 10 } }, ticks: { font: { size: 10 }, callback: v => '$' + v }, grid: { color: 'rgba(128,128,128,0.08)' } }, yDb: { type: 'linear', position: 'right', title: { display: true, text: 'Mean VV (dB)', font: { size: 10 } }, ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { display: false } }, yPct: { type: 'linear', position: 'right', min: 0, max: 100, title: { display: true, text: 'Avg fill %', font: { size: 10 } }, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { display: false }, display: false } }
+      }
+    });
+  }
+}
+async function renderCorrelation(days) {
+  const prices = await fetchOilPrices(days);
+  const avgs = computeDailyAverages(historyData);
+  const allDates = [...new Set([...Object.keys(prices), ...Object.keys(avgs)])].sort();
+  corrJoined = allDates.filter(d => prices[d] !== undefined || avgs[d] !== undefined).map(d => ({ date: d, price: prices[d] || null, avgDb: avgs[d] ? avgs[d].avgDb : null, avgPct: avgs[d] ? avgs[d].avgPct : null }));
+  const overlap = corrJoined.filter(d => d.price !== null && d.avgDb !== null);
+  const rDb = pearsonR(overlap.map(d => d.price), overlap.map(d => d.avgDb));
+  const rPct = pearsonR(overlap.map(d => d.price), overlap.map(d => d.avgPct));
+  const corrLabel = document.getElementById('corr-label');
+  if (rDb !== null) { corrLabel.textContent = `r(price,dB) = ${rDb.toFixed(3)}` + (rPct !== null ? ` | r(price,fill%) = ${rPct.toFixed(3)}` : '') + ` | ${overlap.length} overlapping days`; }
+  else { corrLabel.textContent = `${Object.keys(avgs).length} SAR days, ${Object.keys(prices).length} price days (need 3+ overlap for correlation)`; }
+  drawCorrChart(corrJoined);
+}
+async function init() {
+  await Promise.all([loadSnapshot(), loadHistory(30)]);
+  if (!selectedTank && snapshotData && snapshotData.tank_features) {
+    const tanks = dedupBy(snapshotData.tank_features, 'tank_id');
+    if (tanks.length > 0) selectTank(tanks[0].tank_id);
+  }
+  renderCorrelation(90);
+}
+init();
+setInterval(() => { loadSnapshot(); loadHistory(parseInt(document.getElementById('days-select').value)); }, 5 * 60 * 1000);
+</script>
+</body>
+</html>

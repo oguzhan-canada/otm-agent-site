@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture — OTM-Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTM<span>-Agent</span></a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html" class="active">Architecture</a>
+      <a href="methods.html">Methods</a>
+      <a href="benchmarks.html">Benchmarks</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="audit.html">Audit</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="about.html">About</a>
+    </div>
+    <div class="nav-right">
+      <a href="https://github.com/oguzhan-canada/otm-agent-site" style="color:var(--text3);font-size:13px">GitHub</a>
+      <button class="theme-toggle" onclick="toggleTheme()">☀/☾</button>
+    </div>
+  </div>
+</nav>
+
+<div class="page">
+  <h1>System Architecture</h1>
+  <p class="subtitle">OTM-Agent wraps a three-stage operational pipeline with an LLM-orchestrated agent layer comprising a planner, executor, four-tier memory, Bayesian persona vectors, and multi-objective reward.</p>
+
+  <h2>High-Level Data Flow</h2>
+  <div class="diagram">┌──────────────────────────────────────────────────────────────────────┐
+│                   OTM Production Pipeline                            │
+│   Stage 1 (SAR → Hub State) · Stage 2 (Features + ML Models)        │
+│   Stage 3 (Signals + Paper Trading) · BigQuery                       │
+│   Runs daily on Cloud Run, scheduled at 02:00 / 03:00 / 04:00 UTC   │
+└────────────────────────────────┬─────────────────────────────────────┘
+                                 │
+                  ┌──────────────┴──────────────┐
+                  ▼                              ▼
+        ┌─────────────────────┐        ┌─────────────────────┐
+        │ OTM-Agent API       │        │ Dashboard API       │
+        │ (Cloud Run Service) │        │ otm-api-dev         │
+        │ Planner + Executor  │        │ Live SAR data       │
+        └──────────┬──────────┘        └─────────────────────┘
+                   │
+     ┌─────────────┼─────────────┐
+     ▼             ▼             ▼
+┌─────────┐  ┌──────────┐  ┌──────────┐
+│ Memory  │  │ Persona  │  │ Reward   │
+│ 4-tier  │  │ 64-d     │  │ Multi-   │
+│ System  │  │ Bayesian │  │ objective│
+└─────────┘  └──────────┘  └──────────┘</div>
+
+  <h2>Base Pipeline: Three Stages</h2>
+
+  <h3>Stage 1: SAR Processing &amp; State Estimation</h3>
+  <p>Raw Sentinel-1 SAR observations are processed through confidence scoring (quality weights based on acquisition geometry, weather, temporal recency), z-score normalization, and Kalman filtering to produce daily hub-state estimates — a tightness index (0 = empty, 1 = full) with associated uncertainty.</p>
+  <div class="metric-grid" style="grid-template-columns: repeat(3,1fr)">
+    <div class="metric">
+      <div class="metric-label">Observations</div>
+      <div class="metric-value">5,124</div>
+      <div class="metric-sub">Sentinel-1 SAR for Cushing</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Hub-State Days</div>
+      <div class="metric-value">309</div>
+      <div class="metric-sub">daily estimates produced</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Kalman Convergence</div>
+      <div class="metric-value">0.066→0.045</div>
+      <div class="metric-sub">variance reduction</div>
+    </div>
+  </div>
+
+  <h3>Stage 2: Feature Engineering &amp; ML Models</h3>
+  <p>Market data (WTI prices, calendar spreads, COT positions, EIA releases) is joined with Stage 1 hub-state output to produce linkage features. Three LightGBM classifiers consume these features:</p>
+  <table>
+    <thead>
+      <tr><th>Model</th><th>Accuracy</th><th>Baseline</th><th>Δ</th><th>Top Feature</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Regime Classifier</td><td><strong>65.35%</strong></td><td>52.9%</td><td>+12.4 pp</td><td>tightness_mean</td></tr>
+      <tr><td>Spread Forecaster</td><td>51.4%</td><td>50.0%</td><td>+1.4 pp</td><td>wti_settle</td></tr>
+      <tr><td>EIA Surprise</td><td>51.5%</td><td>50.0%</td><td>+1.5 pp</td><td>tightness_mean</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Stage 3: Signal Generation &amp; Governance</h3>
+  <p>A signal generator combines model outputs into daily composite trading signals (long/short/flat) with confidence. A paper trading module executes simulated trades, and a governance scorecard tracks prediction accuracy.</p>
+
+  <h2>Agent Layer</h2>
+  <div class="diagram">┌──────────────────────────────────────────────────────┐
+│                      OTM-Agent                        │
+│                                                       │
+│   ┌──────────┐    ┌──────────┐    ┌───────────────┐   │
+│   │ Planner  │ →  │ Executor │ →  │ Reward / Eval │   │
+│   │ (LLM)    │    │ (Skills) │    │ (Multi-obj.)  │   │
+│   └────┬─────┘    └──────────┘    └───────────────┘   │
+│        │               ↑                              │
+│   ┌────▼─────┐    ┌────┴─────┐                        │
+│   │ Memory   │    │ Persona  │                        │
+│   │ (4-tier) │    │ (64-d)   │                        │
+│   └──────────┘    └──────────┘                        │
+└───────────────────────────────────────────────────────┘</div>
+
+  <h3>Turn Flow</h3>
+  <p>A single agent turn proceeds through 9 steps:</p>
+  <ol style="color:var(--text2);margin-bottom:1.5rem;padding-left:1.5rem">
+    <li><strong>Context assembly</strong> — populate WorkingMemory with query + context</li>
+    <li><strong>Persona retrieval</strong> — load 64-d persona vector for current user</li>
+    <li><strong>State signature</strong> — MD5 hash of regime × volatility × persona mode</li>
+    <li><strong>Memory retrieval</strong> — 3 episodic + 5 semantic + 2 procedural sequences</li>
+    <li><strong>Plan generation</strong> — LLM produces structured JSON plan (goal, rationale, skill steps)</li>
+    <li><strong>Plan validation</strong> — skill registry checks preconditions, costs, DAG constraints</li>
+    <li><strong>Execution</strong> — dispatch skills, track effects, replan on failure (up to 3 replans)</li>
+    <li><strong>Response generation</strong> — synthesize natural-language response from skill outputs</li>
+    <li><strong>Memory persistence</strong> — record episodic entry, extract semantic facts, update persona</li>
+  </ol>
+
+  <h2>Skill Library — 20 Skills, 7 Categories</h2>
+  <div class="skill-grid">
+    <div class="skill-card">
+      <div class="skill-cat">BigQuery Queries (6)</div>
+      <div class="skill-name">sense_tank_state</div>
+      <div class="skill-desc">Current tank state from SAR observations</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">BigQuery Queries</div>
+      <div class="skill-name">fetch_tank_history</div>
+      <div class="skill-desc">Historical tank observations over time window</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">BigQuery Queries</div>
+      <div class="skill-name">fetch_region_signal</div>
+      <div class="skill-desc">Regional aggregate signal for a hub</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">BigQuery Queries</div>
+      <div class="skill-name">fetch_trade_log</div>
+      <div class="skill-desc">Paper trading execution log</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">BigQuery Queries</div>
+      <div class="skill-name">fetch_tightness</div>
+      <div class="skill-desc">Hub tightness index from Kalman filter</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">BigQuery Queries</div>
+      <div class="skill-name">fetch_market_data</div>
+      <div class="skill-desc">WTI prices, spreads, COT positions</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">Compute / Analytics (5)</div>
+      <div class="skill-name">compute_fill_signal</div>
+      <div class="skill-desc">Fill level from radar backscatter</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">Compute / Analytics</div>
+      <div class="skill-name">compute_tightness</div>
+      <div class="skill-desc">Hub tightness from tank-level data</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">Compute / Analytics</div>
+      <div class="skill-name">compute_zscore</div>
+      <div class="skill-desc">Z-score normalization of signal</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">Compute / Analytics</div>
+      <div class="skill-name">compute_delta</div>
+      <div class="skill-desc">Day-over-day delta computation</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">Compute / Analytics</div>
+      <div class="skill-name">compute_goii</div>
+      <div class="skill-desc">Global Oil Inventory Index</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">ML Models (3)</div>
+      <div class="skill-name">predict_regime</div>
+      <div class="skill-desc">Contango vs backwardation classification</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">ML Models</div>
+      <div class="skill-name">predict_spread_direction</div>
+      <div class="skill-desc">Next-period spread movement direction</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">ML Models</div>
+      <div class="skill-name">predict_eia_surprise</div>
+      <div class="skill-desc">EIA inventory report direction/magnitude</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">Cloud Run Jobs (2)</div>
+      <div class="skill-name">trigger_sar_pipeline</div>
+      <div class="skill-desc">Trigger Stage 1 SAR processing</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">Cloud Run Jobs</div>
+      <div class="skill-name">trigger_market_ingest</div>
+      <div class="skill-desc">Trigger Stage 2 market data ingest</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">LLM Reasoning (2)</div>
+      <div class="skill-name">explain_market_state</div>
+      <div class="skill-desc">Natural language market interpretation</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">LLM Reasoning</div>
+      <div class="skill-name">summarize_episode</div>
+      <div class="skill-desc">Summarize a completed episode for memory</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">Trade Operations (1)</div>
+      <div class="skill-name">place_paper_trade</div>
+      <div class="skill-desc">Execute paper trade with position sizing</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-cat">Alerts (1)</div>
+      <div class="skill-name">alert_on_threshold</div>
+      <div class="skill-desc">Anomaly detection and notification</div>
+    </div>
+  </div>
+
+  <h3>Skill Contract Example</h3>
+  <pre><code>{
+  "name": "predict_regime",
+  "category": "ML Models",
+  "preconditions": ["linkage_features_available"],
+  "effects": ["regime_prediction_available"],
+  "failure_modes": ["insufficient_data", "model_load_error"],
+  "avg_latency_ms": 850,
+  "avg_cost_usd": 0.001,
+  "retention_probes": [
+    "What regime did the model predict?",
+    "What was the classification confidence?",
+    "Which feature contributed most?"
+  ]
+}</code></pre>
+
+  <h2>Four-Tier Memory System</h2>
+  <table>
+    <thead>
+      <tr><th>Tier</th><th>Stores</th><th>Retrieval</th><th>Lifetime</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Working</strong></td><td>Current turn state, intermediate outputs</td><td>Direct access</td><td>Single turn</td></tr>
+      <tr><td><strong>Episodic</strong></td><td>Complete turn records (query, plan, results, reward)</td><td>Top-3 by embedding similarity</td><td>Persistent (BigQuery)</td></tr>
+      <tr><td><strong>Semantic</strong></td><td>Domain facts with support/contradiction counts</td><td>Top-5 by relevance</td><td>Persistent (BigQuery)</td></tr>
+      <tr><td><strong>Procedural</strong></td><td>Skill sequences indexed by state signature</td><td>Top-2 by reward for current state</td><td>Persistent (BigQuery)</td></tr>
+    </tbody>
+  </table>
+  <p>State signatures are 8-character MD5 hashes of (regime × volatility × persona mode), enabling transfer across sessions with comparable market conditions.</p>
+
+  <h2>Persona Module — 64-Dimensional Bayesian Vectors</h2>
+  <p>Each analyst's preferences are represented as a 64-dimensional vector maintained as a Bayesian posterior (mean + 64×64 covariance). Two anchor directions define the primary axis:</p>
+  <table>
+    <thead>
+      <tr><th>Mode</th><th>Bias Toward</th><th>Example Skills</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Execution</strong></td><td>Action-oriented</td><td>fetch_tank_features, compose_signal, place_paper_trade</td></tr>
+      <tr><td><strong>Analysis</strong></td><td>Investigation-oriented</td><td>compare_to_history, explain_decision, predict_regime</td></tr>
+    </tbody>
+  </table>
+  <p>After each interaction, the persona vector is updated via Kalman-style Bayesian inference. Over multiple turns, the covariance shrinks and behavior becomes increasingly specialized for the individual analyst.</p>
+
+  <h2>Infrastructure</h2>
+  <table>
+    <thead>
+      <tr><th>Resource</th><th>Value</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GCP Project</td><td><code>oil-tank-monitoring-123</code></td></tr>
+      <tr><td>Region</td><td><code>northamerica-northeast1</code></td></tr>
+      <tr><td>Cloud Run Jobs</td><td>7 (daily SAR, SAR download, backfill, Stage 1–3)</td></tr>
+      <tr><td>Cloud Run Services</td><td>3 (Dashboard API, Signal API, GOII API)</td></tr>
+      <tr><td>BigQuery Tables</td><td>31 across 6 datasets</td></tr>
+      <tr><td>GCS Buckets</td><td>5 (raw, processed, curated, model, downloads)</td></tr>
+      <tr><td>Schedulers</td><td>3 daily triggers (02:00, 03:00, 04:00 UTC)</td></tr>
+    </tbody>
+  </table>
+
+</div>
+
+<footer>
+  <span>OTM-Agent · Architecture</span>
+  <span>Last updated: 2026-05-21</span>
+</footer>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+  localStorage.setItem('theme', html.getAttribute('data-theme'));
+}
+(function() {
+  const saved = localStorage.getItem('theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+})();
+</script>
+</body>
+</html>
