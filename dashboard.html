@@ -343,6 +343,73 @@
 
   <div id="stale-banner" style="display:none" class="banner-stale"></div>
 
+  <!-- Interactive dB ↔ Fill % Explainer -->
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">How radar signal (dB) maps to fill estimate (%)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start" id="db-explainer-grid">
+      <!-- Left: interactive slider + tank visual -->
+      <div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Drag the slider to see how different radar return strengths translate into estimated fill levels.</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <label style="font-size:12px;font-weight:600;color:var(--text3);min-width:70px">dB value</label>
+          <input type="range" id="db-slider" min="-32" max="-5" step="0.5" value="-15" style="flex:1;accent-color:var(--accent)">
+          <span id="db-slider-val" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500;min-width:60px;text-align:right">−15.0 dB</span>
+        </div>
+        <!-- Tank SVG visualization -->
+        <div style="display:flex;align-items:end;gap:24px;justify-content:center;padding:12px 0">
+          <svg viewBox="0 0 120 180" width="120" height="180" style="flex-shrink:0">
+            <!-- Tank outline -->
+            <rect x="10" y="20" width="100" height="140" rx="8" ry="8" fill="none" stroke="var(--border2)" stroke-width="2"/>
+            <!-- Fill level (animated) -->
+            <clipPath id="tank-clip"><rect x="12" y="22" width="96" height="136" rx="6" ry="6"/></clipPath>
+            <rect id="tank-fill-rect" x="12" width="96" rx="6" ry="6" clip-path="url(#tank-clip)" style="transition:all 0.3s ease"/>
+            <!-- Radar waves (top) -->
+            <g id="radar-waves" style="transition:opacity 0.3s">
+              <path d="M60 8 Q50 0 40 8" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.4"/>
+              <path d="M70 12 Q60 2 50 12" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.6"/>
+              <path d="M75 16 Q60 4 45 16" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.8"/>
+            </g>
+            <!-- Labels -->
+            <text x="60" y="174" text-anchor="middle" fill="var(--text3)" font-size="10" font-family="Inter,sans-serif">tank cross-section</text>
+          </svg>
+          <div style="text-align:center">
+            <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Estimated fill</div>
+            <div id="db-fill-pct" style="font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:600;letter-spacing:-1px;transition:color 0.3s">63%</div>
+            <div id="db-fill-label" style="font-size:12px;margin-top:4px;font-weight:500;transition:color 0.3s">near baseline</div>
+            <div id="db-fill-bar" style="width:120px;height:6px;border-radius:3px;background:var(--bg3);margin:10px auto 0;overflow:hidden">
+              <div id="db-fill-bar-inner" style="height:100%;border-radius:3px;transition:all 0.3s ease"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Right: explanation panel -->
+      <div>
+        <div style="font-size:12.5px;line-height:1.8;color:var(--text2)" id="db-explain-text"></div>
+        <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+          <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Reference scale</div>
+          <div style="display:flex;align-items:center;gap:0;height:18px;border-radius:4px;overflow:hidden;margin-bottom:6px">
+            <div style="flex:1;background:linear-gradient(90deg,#cc2222 0%,#cc2222 40%);height:100%"></div>
+            <div style="flex:0.7;background:linear-gradient(90deg,#cc2222,#c47a00);height:100%"></div>
+            <div style="flex:0.7;background:linear-gradient(90deg,#c47a00,#3a7a00);height:100%"></div>
+            <div style="flex:1;background:linear-gradient(90deg,#3a7a00 0%,#3a7a00 100%);height:100%"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace">
+            <span>−32 dB</span><span>−21 dB</span><span>−16 dB</span><span>−5 dB</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:2px">
+            <span>empty (0%)</span><span>low (40%)</span><span>mid (60%)</span><span>full (100%)</span>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-size:11.5px;color:var(--text3);line-height:1.7">
+          <strong style="color:var(--text2)">Key insight:</strong> The relationship is <em>relative</em>, not absolute. A single dB reading means little on its own — the fill estimate compares each tank against its own historical baseline. The linear mapping shown here (−32 to −5 dB → 0 to 100%) is an approximation used before enough baseline data accumulates.
+        </div>
+      </div>
+    </div>
+  </div>
+  <style>
+    @media(max-width:700px) { #db-explainer-grid { grid-template-columns: 1fr !important; } }
+  </style>
+
   <div class="card" style="margin-bottom:1.5rem">
     <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:.75rem">
       <span class="card-title" style="margin-bottom:0">Oil price vs. average tank signal</span>
@@ -956,6 +1023,73 @@ async function renderCorrelation(days) {
   }
   drawCorrChart(corrJoined, sarWithPrice);
 }
+// ── dB ↔ Fill % Interactive Explainer ───────────────────────
+(function() {
+  const slider = document.getElementById('db-slider');
+  const valLabel = document.getElementById('db-slider-val');
+  const fillPct = document.getElementById('db-fill-pct');
+  const fillLabel = document.getElementById('db-fill-label');
+  const fillBarInner = document.getElementById('db-fill-bar-inner');
+  const fillRect = document.getElementById('tank-fill-rect');
+  const explainText = document.getElementById('db-explain-text');
+  if (!slider) return;
+
+  function updateExplainer() {
+    const db = parseFloat(slider.value);
+    const pct = Math.max(0, Math.min(100, ((db - (-32)) / ((-5) - (-32))) * 100));
+    const pctRound = Math.round(pct);
+
+    // Update labels
+    valLabel.textContent = db.toFixed(1) + ' dB';
+
+    // Color based on fill level
+    let color, label;
+    if (pct > 60) { color = '#3a7a00'; label = 'above average'; }
+    else if (pct < 40) { color = '#cc2222'; label = 'below average'; }
+    else { color = '#c47a00'; label = 'near baseline'; }
+
+    fillPct.textContent = pctRound + '%';
+    fillPct.style.color = color;
+    fillLabel.textContent = label;
+    fillLabel.style.color = color;
+    fillBarInner.style.width = pct + '%';
+    fillBarInner.style.background = color;
+
+    // Tank SVG fill
+    const tankH = 136;
+    const fillH = tankH * (pct / 100);
+    const fillY = 22 + (tankH - fillH);
+    fillRect.setAttribute('y', fillY);
+    fillRect.setAttribute('height', fillH);
+    fillRect.setAttribute('fill', color);
+    fillRect.setAttribute('opacity', '0.25');
+
+    // Radar wave opacity (stronger return = stronger waves)
+    const waveOpacity = 0.2 + (pct / 100) * 0.8;
+    document.getElementById('radar-waves').style.opacity = waveOpacity;
+
+    // Explanation text
+    let physics, meaning;
+    if (db > -10) {
+      physics = `At <strong>${db.toFixed(1)} dB</strong>, the radar return is very strong. The satellite's C-band pulse is bouncing back almost entirely — like light off a mirror.`;
+      meaning = `This indicates a <strong>smooth, reflective surface</strong> — consistent with oil sitting at the top of the tank. The liquid surface acts as a near-perfect specular reflector, sending most of the radar energy straight back to the satellite.`;
+    } else if (db > -16) {
+      physics = `At <strong>${db.toFixed(1)} dB</strong>, the radar return is moderate. A meaningful portion of the signal is reflecting back, but some is being scattered.`;
+      meaning = `This suggests a <strong>partially filled tank</strong> — the surface may be a mix of liquid and exposed internal structures (floating roof edges, support columns). Some energy reflects cleanly off liquid, some scatters off metal.`;
+    } else if (db > -22) {
+      physics = `At <strong>${db.toFixed(1)} dB</strong>, the radar return is weak. Most of the C-band energy is being scattered in multiple directions rather than returning to the satellite.`;
+      meaning = `This is consistent with a <strong>mostly empty tank</strong> — exposed internal walls, equipment, and the tank bottom create rough surfaces that diffuse the radar signal. Less liquid surface = less mirror-like reflection.`;
+    } else {
+      physics = `At <strong>${db.toFixed(1)} dB</strong>, the radar return is very weak. Almost all of the signal is lost to diffuse scattering.`;
+      meaning = `This indicates an <strong>empty or near-empty tank</strong>. The interior geometry (corrugated walls, support struts, drain pipes) breaks up the radar wavefront. Essentially no smooth liquid surface remains to reflect coherently.`;
+    }
+    explainText.innerHTML = `<p style="margin-bottom:8px">${physics}</p><p>${meaning}</p>`;
+  }
+
+  slider.addEventListener('input', updateExplainer);
+  updateExplainer(); // initial render
+})();
+
 async function init() {
   // Load 90 days of history to cover the correlation chart range
   await Promise.all([loadSnapshot(), loadHistory(90)]);
