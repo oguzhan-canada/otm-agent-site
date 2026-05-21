@@ -548,6 +548,7 @@ let trendChartObj = null;
 let regionChartObj = null;
 let snapshotData = null;
 let consecutiveFailures = 0;
+let wtiPriceCache = {};  // date→price cache for trend overlay
 const MAX_RETRIES = 2;
 const FETCH_TIMEOUT_MS = 12000;
 const STALE_WARN_DAYS = 2;
@@ -738,14 +739,14 @@ function selectTank(tankId) {
   drawTrend(tankId);
 }
 function drawTrend(tankId) {
-  const days = document.getElementById('days-select').value;
+  const days = parseInt(document.getElementById('days-select').value);
   const history = historyData[tankId];
   if (!history || history.length === 0) { document.getElementById('selected-label').textContent = tankId + ' — no history yet'; return; }
   const hasAnyProxy = history.some(h => h.fill_proxy !== null);
   let effectiveUnit = currentUnit;
   if (!hasAnyProxy && currentUnit === 'pct') effectiveUnit = 'db';
 
-  // Build data points with proper date objects for time axis
+  // Build SAR data points
   const dataPoints = history
     .filter(h => h.obs_date)
     .sort((a, b) => a.obs_date.localeCompare(b.obs_date))
@@ -755,14 +756,33 @@ function drawTrend(tankId) {
       pct: h.fill_proxy !== null ? Math.round(h.fill_proxy * 100) : null,
     }));
 
+  // Build WTI price data points for the same date range
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  const pricePoints = Object.keys(wtiPriceCache)
+    .filter(d => d >= cutoff)
+    .sort()
+    .map(d => ({ x: d, y: wtiPriceCache[d] }));
+
   const datasets = [];
+
+  // WTI price line (always shown, rendered first so it's behind)
+  if (pricePoints.length > 0) {
+    datasets.push({
+      label: 'WTI crude (USD/bbl)',
+      data: pricePoints,
+      borderColor: '#c47a00', backgroundColor: 'rgba(196,122,0,0.04)',
+      tension: 0.3, pointRadius: 1, pointHoverRadius: 4, borderWidth: 1.5,
+      fill: true, yAxisID: 'yPrice', spanGaps: true, order: 2
+    });
+  }
+
   if (effectiveUnit === 'db' || effectiveUnit === 'both') {
     datasets.push({
       label: 'Mean VV (dB)',
       data: dataPoints.map(p => ({ x: p.x, y: p.db })),
       borderColor: '#0066CC', backgroundColor: 'rgba(0,102,204,0.06)',
-      tension: 0.3, pointRadius: 4, pointHoverRadius: 6,
-      fill: effectiveUnit === 'db', yAxisID: effectiveUnit === 'both' ? 'ydb' : 'y', spanGaps: true
+      tension: 0.3, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2,
+      fill: false, yAxisID: effectiveUnit === 'both' ? 'ydb' : 'y', spanGaps: true, order: 1
     });
   }
   if (effectiveUnit === 'pct' || effectiveUnit === 'both') {
@@ -770,19 +790,23 @@ function drawTrend(tankId) {
       label: 'Fill estimate (%)',
       data: dataPoints.map(p => ({ x: p.x, y: p.pct })),
       borderColor: '#0d9e75', backgroundColor: 'rgba(13,158,117,0.06)',
-      tension: 0.3, pointRadius: 4, pointHoverRadius: 6,
-      fill: effectiveUnit === 'pct', yAxisID: effectiveUnit === 'both' ? 'ypct' : 'y', spanGaps: true
+      tension: 0.3, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2,
+      fill: false, yAxisID: effectiveUnit === 'both' ? 'ypct' : 'y', spanGaps: true, order: 0
     });
   }
 
   const scales = {};
   if (effectiveUnit === 'both') {
-    scales.ydb = { type: 'linear', position: 'right', title: { display: true, text: 'dB', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { color: 'rgba(128,128,128,0.07)' } };
+    scales.ydb = { type: 'linear', position: 'right', title: { display: true, text: 'dB', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { display: false } };
     scales.ypct = { type: 'linear', position: 'left', min: 0, max: 100, title: { display: true, text: 'fill %', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(128,128,128,0.08)' } };
   } else if (effectiveUnit === 'pct') {
-    scales.y = { min: 0, max: 100, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(128,128,128,0.08)' } };
+    scales.y = { position: 'left', min: 0, max: 100, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(128,128,128,0.08)' } };
   } else {
-    scales.y = { ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { color: 'rgba(128,128,128,0.08)' } };
+    scales.y = { position: 'left', ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { color: 'rgba(128,128,128,0.08)' } };
+  }
+  // WTI price axis (right side)
+  if (pricePoints.length > 0) {
+    scales.yPrice = { type: 'linear', position: 'right', title: { display: true, text: 'USD/bbl', font: { size: 10, weight: '500' } }, ticks: { font: { size: 10 }, callback: v => '$' + v }, grid: { display: false } };
   }
   // Time-based x-axis so irregular SAR dates are spaced correctly
   scales.x = {
@@ -795,7 +819,24 @@ function drawTrend(tankId) {
   if (trendChartObj) trendChartObj.destroy();
   trendChartObj = new Chart(document.getElementById('trendChart'), {
     type: 'line', data: { datasets },
-    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false }, plugins: { legend: { display: datasets.length > 1, labels: { font: { size: 11 }, boxWidth: 10 } }, tooltip: { callbacks: { title: (items) => items[0] ? items[0].raw.x : '' } } }, scales }
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'nearest', intersect: false },
+      plugins: {
+        legend: { display: true, labels: { font: { size: 11 }, boxWidth: 10 } },
+        tooltip: { callbacks: {
+          title: (items) => items[0] ? items[0].raw.x : '',
+          label: (ctx) => {
+            const v = ctx.parsed.y;
+            if (v === null) return ctx.dataset.label + ': N/A';
+            if (ctx.dataset.yAxisID === 'yPrice') return `WTI: $${v.toFixed(2)}/bbl`;
+            if (ctx.dataset.label.includes('dB')) return `dB: ${v.toFixed(1)}`;
+            return `Fill: ${v}%`;
+          }
+        }}
+      },
+      scales
+    }
   });
 }
 document.getElementById('days-select').addEventListener('change', () => { if (selectedTank) loadHistory(parseInt(document.getElementById('days-select').value)); });
@@ -910,6 +951,8 @@ async function fetchOilPrices(days) {
       const [date, price] = line.split(',');
       if (date >= cutoff && price) prices[date] = parseFloat(price);
     }
+    // Cache all fetched prices for trend overlay
+    Object.assign(wtiPriceCache, prices);
     return prices;
   } catch (e) { console.warn('Oil price fetch failed:', e.message); return {}; }
 }
