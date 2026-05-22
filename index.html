@@ -624,7 +624,7 @@
             <option value="90">90 days</option>
           </select>
           <div class="unit-toggle">
-            <button class="unit-btn active" id="btn-pct" onclick="setUnit('pct')">fill %</button>
+            <button class="unit-btn active" id="btn-pct" onclick="setUnit('pct')">capacity %</button>
             <button class="unit-btn" id="btn-db" onclick="setUnit('db')">dB</button>
             <button class="unit-btn" id="btn-both" onclick="setUnit('both')">both</button>
           </div>
@@ -632,7 +632,7 @@
       </div>
       <div class="chart-wrap-tall"><canvas id="trendChart"></canvas></div>
       <div class="note" style="margin-top:.75rem">
-        <strong>Fill % (left axis):</strong> estimated fill level relative to the tank's own baseline — above 50% means above-average fill compared to recent history. <strong>dB (right axis):</strong> raw radar backscatter strength — stronger return (less negative) generally means smoother, fuller surface. Both signals update daily after the satellite overpass is processed.
+        <strong>Capacity % (left axis):</strong> estimated available (empty) capacity — higher values mean more room to store oil. <strong>dB (right axis):</strong> raw radar backscatter strength — stronger return (less negative) generally means smoother, fuller surface. Both signals update daily after the satellite overpass is processed.
       </div>
     </div>
   </div>
@@ -884,7 +884,7 @@ function drawTrend(tankId) {
     .map(h => ({
       x: h.obs_date,
       db: h.mean_vv !== null ? parseFloat(h.mean_vv.toFixed(2)) : null,
-      pct: h.fill_proxy !== null ? Math.round(h.fill_proxy * 100) : (h.mean_vv !== null ? Math.round(vvToPct(h.mean_vv)) : null),
+      pct: h.fill_proxy !== null ? (100 - Math.round(h.fill_proxy * 100)) : (h.mean_vv !== null ? (100 - Math.round(vvToPct(h.mean_vv))) : null),
     }));
 
   // Build WTI price data points for the same date range
@@ -917,7 +917,7 @@ function drawTrend(tankId) {
   }
   if (effectiveUnit === 'pct' || effectiveUnit === 'both') {
     datasets.push({
-      label: 'Fill estimate (%)',
+      label: 'Available capacity (%)',
       data: dataPoints.map(p => ({ x: p.x, y: p.pct })),
       borderColor: '#0d9e75', backgroundColor: 'rgba(13,158,117,0.06)',
       tension: 0.3, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2,
@@ -928,7 +928,7 @@ function drawTrend(tankId) {
   const scales = {};
   if (effectiveUnit === 'both') {
     scales.ydb = { type: 'linear', position: 'right', title: { display: true, text: 'dB', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { display: false } };
-    scales.ypct = { type: 'linear', position: 'left', min: 0, max: 100, title: { display: true, text: 'fill %', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(128,128,128,0.08)' } };
+    scales.ypct = { type: 'linear', position: 'left', min: 0, max: 100, title: { display: true, text: 'capacity %', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(128,128,128,0.08)' } };
   } else if (effectiveUnit === 'pct') {
     scales.y = { position: 'left', min: 0, max: 100, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(128,128,128,0.08)' } };
   } else {
