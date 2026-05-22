@@ -879,7 +879,6 @@ function drawTrend(tankId) {
     }));
 
   // Build WTI price data points for the same date range
-  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
   const pricePoints = Object.keys(wtiPriceCache)
     .filter(d => d >= cutoff)
     .sort()
