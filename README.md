@@ -1,6 +1,8 @@
 # OTM-Agent — Public Site
 
 Static HTML/CSS site for the OTM-Agent project: an LLM-orchestrated agentic system for satellite-based oil tank monitoring and commodity intelligence.
+https://oguzhan-canada.github.io/otm-agent-site/dashboard.html
+
 
 ## Pages
 
