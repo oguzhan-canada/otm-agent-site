@@ -1476,8 +1476,26 @@ function tryLocalAnswer(query) {
   const regions = data.region_signal || [];
   const tankFeatures = data.tank_features || [];
 
-  // Latest fill / status queries
-  if (q.includes('latest') || q.includes('current') || q.includes('status') || q.includes('fill')) {
+  // ── Analytical / conceptual questions (check FIRST to avoid false matches) ──
+
+  // Price-fill relationship / geopolitics / correlation
+  if ((q.includes('price') && q.includes('fill')) || q.includes('geopolit') || (q.includes('relation') && (q.includes('price') || q.includes('oil'))) || (q.includes('correlat') && q.includes('fill'))) {
+    return `📈 **Oil Price vs. Tank Fill Levels — The Relationship**\n\n**The basics:** When oil prices **drop**, traders buy cheap crude and store it → tank fill levels **rise**. When prices **rise**, stored oil gets sold → fill levels **drop**. This is called the **contango trade** (store now, sell later at higher futures price).\n\n**How we see it:** Our SAR radar measures physical tank surfaces. Fuller tanks have smoother surfaces → stronger radar return (less negative dB). The Daily Trend chart overlays WTI crude prices on fill signals so you can spot these patterns.\n\n**Geopolitical factors that affect both:**\n• 🇸🇦 **OPEC+ production cuts** → reduced supply → prices rise, fill levels drop\n• 🇷🇺 **Sanctions/embargoes** → rerouted trade flows → Fujairah & Singapore may see unusual builds\n• 🇺🇸 **SPR releases** → Cushing fill levels spike as government barrels enter the market\n• 🌍 **Conflict/disruption** (Strait of Hormuz, Red Sea) → shipping delays → regional fill divergence\n• 📊 **EIA weekly reports** → inventory surprises cause price swings within hours\n\n**Regional dynamics:**\n• **Cushing** — most price-sensitive (WTI delivery point). Fill tracks US supply/demand tightly\n• **Rotterdam** — European Brent benchmark hub. Affected by Russian gas/oil policy\n• **Fujairah** — Middle East buffer. Fill levels respond to OPEC decisions\n• **Singapore** — Asia demand barometer. China import policy drives levels\n\n_Check the Correlation tab above for scatter-plot analysis of price vs. signal._`;
+  }
+
+  // Oil price / WTI general
+  if (q.includes('oil price') || q.includes('wti') || q.includes('crude price')) {
+    return `📈 **Oil Price & Tank Signals**\n\nThe Daily Trend chart overlays WTI crude prices on per-tank fill signals.\n\n**Key dynamics:**\n• **Rising prices** → traders sell stored oil → fill levels tend to drop\n• **Falling prices** → traders buy & store cheap oil → fill levels tend to rise (contango)\n• **Flat prices** → inventory builds/draws follow seasonal patterns & refinery demand\n\n**What our data shows:**\n• SAR-based fill estimates measure **physical tank levels** via radar backscatter\n• WTI prices reflect **market expectations** of supply/demand\n• Cushing (US benchmark hub) shows the strongest price-fill correlation\n• Overseas hubs (Rotterdam, Fujairah, Singapore) respond more to regional factors\n\n_Check the **Correlation** tab above for time-series and scatter-plot analysis._`;
+  }
+
+  // Explain / what is questions about the project
+  if (q.includes('explain') && !q.includes('price') && !q.includes('fill') && !q.includes('geopolit')) {
+    return `🛰️ **OTM-Agent in a Nutshell**\n\nWe use **satellites** (Sentinel-1 SAR) to monitor **oil storage tanks** around the world — like having eyes in space watching how full or empty they are.\n\n**4 global hubs monitored:**\n• Cushing 🇺🇸 • Rotterdam 🇳🇱 • Fujairah 🇦🇪 • Singapore 🇸🇬\n\n**How:** Radar bounces off tank surfaces. Full tanks = smooth surface = strong signal. Empty tanks = rough surface = weak signal. Our pipeline processes this daily and translates radar strength (dB) into fill percentages.\n\n**Why it matters:** Oil traders and analysts need to know global storage levels. More storage = oversupply risk. Less storage = shortage risk. This intelligence helps forecast prices.\n\nAsk me about any specific hub, tank, or trend!`;
+  }
+
+  // Latest fill / status queries (only for direct data requests, not analytical)
+  if ((q.includes('latest') || q.includes('current') || q.includes('status')) ||
+      (q.includes('fill') && !q.includes('relation') && !q.includes('explain') && !q.includes('correlat') && !q.includes('price') && !q.includes('geopolit') && q.length < 60)) {
     if (q.includes('cushing') || q.includes('rotterdam') || q.includes('fujairah') || q.includes('singapore')) {
       const regionKey = q.includes('cushing') ? 'cushing' : q.includes('rotterdam') ? 'rotterdam' : q.includes('fujairah') ? 'fujairah' : 'singapore';
       const rData = regions.find(r => r.region_code === regionKey);
