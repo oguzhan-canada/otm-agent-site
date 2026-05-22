@@ -865,9 +865,12 @@ function drawTrend(tankId) {
   let effectiveUnit = currentUnit;
   if (!hasAnyProxy && currentUnit === 'pct') effectiveUnit = 'db';
 
-  // Build SAR data points
+  // Filter history to selected day range
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+
+  // Build SAR data points (filtered by days)
   const dataPoints = history
-    .filter(h => h.obs_date)
+    .filter(h => h.obs_date && h.obs_date >= cutoff)
     .sort((a, b) => a.obs_date.localeCompare(b.obs_date))
     .map(h => ({
       x: h.obs_date,
@@ -958,7 +961,7 @@ function drawTrend(tankId) {
     }
   });
 }
-document.getElementById('days-select').addEventListener('change', () => { if (selectedTank) loadHistory(parseInt(document.getElementById('days-select').value)); });
+document.getElementById('days-select').addEventListener('change', () => { if (selectedTank) drawTrend(selectedTank); });
 
 async function loadHistory(days) {
   try {
@@ -1326,7 +1329,7 @@ function schedulePoll() {
   const interval = consecutiveFailures >= 3 ? POLL_BACKOFF_MS : POLL_INTERVAL_MS;
   setTimeout(() => {
     loadSnapshot();
-    loadHistory(parseInt(document.getElementById('days-select').value));
+    loadHistory(90);
     schedulePoll();
   }, interval);
 }
