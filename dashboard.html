@@ -1466,6 +1466,142 @@ function buildDashboardContext() {
   return ctx;
 }
 
+// Build a data-driven analytical narrative from dashboard + history data
+function buildDataAnalysis(data, curated, regions, tankFeatures) {
+  const obs = data.obs_date;
+  const anomalies = curated.filter(t => t.is_anomaly);
+  const allFills = curated.filter(t => t.fill_proxy != null).map(t => t.fill_proxy);
+  const avgFill = allFills.length ? Math.round(allFills.reduce((a,b) => a+b, 0) / allFills.length) : null;
+
+  // Compute per-region stats
+  const regionStats = {};
+  regions.forEach(r => {
+    regionStats[r.region_code] = {
+      avg: r.avg_fill_proxy != null ? Math.round(r.avg_fill_proxy) : null,
+      tanks: r.tank_count || 0,
+    };
+  });
+
+  // Sort tanks by signal change
+  const movers = [...curated].filter(t => t.delta_vv != null).sort((a, b) => Math.abs(b.delta_vv) - Math.abs(a.delta_vv));
+  const topMover = movers[0];
+
+  // Identify highest/lowest fill tanks
+  const filled = [...curated].filter(t => t.fill_proxy != null).sort((a, b) => b.fill_proxy - a.fill_proxy);
+  const highest = filled[0];
+  const lowest = filled[filled.length - 1];
+
+  // Use history data if available
+  let trendNote = '';
+  if (Object.keys(historyData).length > 0) {
+    const tankIds = Object.keys(historyData);
+    let rising = 0, falling = 0, stable = 0;
+    tankIds.forEach(tid => {
+      const h = historyData[tid];
+      if (!h || h.length < 2) return;
+      const recent = h.slice(-3);
+      const fills = recent.filter(r => r.fill_proxy != null || r.mean_vv != null);
+      if (fills.length >= 2) {
+        const last = fills[fills.length - 1];
+        const prev = fills[0];
+        const lastVal = last.fill_proxy ?? vvToPct(last.mean_vv);
+        const prevVal = prev.fill_proxy ?? vvToPct(prev.mean_vv);
+        const diff = lastVal - prevVal;
+        if (diff > 3) rising++;
+        else if (diff < -3) falling++;
+        else stable++;
+      }
+    });
+    if (rising + falling + stable > 0) {
+      trendNote = `\n\n**📈 Recent trends** (last 2-3 observations):\n`;
+      trendNote += `• ${rising} tank${rising !== 1 ? 's' : ''} trending **up** (fill increasing)\n`;
+      trendNote += `• ${falling} tank${falling !== 1 ? 's' : ''} trending **down** (fill decreasing)\n`;
+      trendNote += `• ${stable} tank${stable !== 1 ? 's' : ''} **stable** (< 3% change)\n`;
+    }
+  }
+
+  // WTI price context
+  let priceNote = '';
+  if (typeof wtiPriceCache !== 'undefined' && wtiPriceCache.length > 0) {
+    const latestPrice = wtiPriceCache[wtiPriceCache.length - 1];
+    const weekAgo = wtiPriceCache.length >= 5 ? wtiPriceCache[wtiPriceCache.length - 5] : null;
+    priceNote = `\n\n**💰 WTI Crude**: $${Number(latestPrice.Price).toFixed(2)}/bbl (${latestPrice.Date})`;
+    if (weekAgo) {
+      const priceDiff = Number(latestPrice.Price) - Number(weekAgo.Price);
+      const dir = priceDiff > 0 ? '↑' : priceDiff < 0 ? '↓' : '→';
+      priceNote += ` — ${dir} $${Math.abs(priceDiff).toFixed(2)} vs. ${weekAgo.Date}`;
+    }
+  }
+
+  // Build narrative
+  let resp = `📊 **Data Analysis & Findings** — as of ${obs}\n\n`;
+
+  // Overview
+  resp += `**Overview:** Monitoring **${curated.length} tanks** across **${regions.length} hubs**. `;
+  if (avgFill != null) {
+    resp += `Global average fill proxy: **${avgFill}%**`;
+    if (avgFill > 60) resp += ` — above-average storage levels, suggesting comfortable supply.`;
+    else if (avgFill > 40) resp += ` — near baseline levels, supply/demand roughly balanced.`;
+    else resp += ` — below-average levels, potentially tightening supply.`;
+  }
+
+  // Regional breakdown
+  resp += `\n\n**🌍 Regional Breakdown:**\n`;
+  Object.entries(regionStats).forEach(([region, s]) => {
+    const emoji = region === 'cushing' ? '🇺🇸' : region === 'rotterdam' ? '🇳🇱' : region === 'fujairah' ? '🇦🇪' : '🇸🇬';
+    const fillStr = s.avg != null ? `${s.avg}%` : 'N/A';
+    let interpretation = '';
+    if (s.avg != null) {
+      if (s.avg > 60) interpretation = ' (elevated)';
+      else if (s.avg > 40) interpretation = ' (normal)';
+      else interpretation = ' (low)';
+    }
+    resp += `• ${emoji} **${region}**: avg fill **${fillStr}**${interpretation} — ${s.tanks} tanks\n`;
+  });
+
+  // Key signals
+  resp += `\n**🔍 Key Signals:**\n`;
+  if (highest && lowest && highest.tank_id !== lowest.tank_id) {
+    resp += `• Highest fill: **${highest.tank_id}** at ${Math.round(highest.fill_proxy)}% (${highest.region_code})\n`;
+    resp += `• Lowest fill: **${lowest.tank_id}** at ${Math.round(lowest.fill_proxy)}% (${lowest.region_code})\n`;
+  }
+  if (topMover) {
+    const dir = topMover.delta_vv > 0 ? 'increased' : 'decreased';
+    resp += `• Biggest signal change: **${topMover.tank_id}** — ${dir} ${Math.abs(topMover.delta_vv).toFixed(3)} dB\n`;
+  }
+
+  // Anomalies
+  if (anomalies.length > 0) {
+    resp += `\n**⚠ Anomalies (${anomalies.length}):**\n`;
+    anomalies.forEach(t => {
+      const fill = t.fill_proxy != null ? Math.round(t.fill_proxy) + '%' : 'N/A';
+      resp += `• **${t.tank_id}** (${t.region_code}): fill ${fill}, z-score ${t.vv_zscore != null ? t.vv_zscore.toFixed(2) : 'N/A'} — statistically unusual reading vs baseline\n`;
+    });
+  } else {
+    resp += `\n✅ **No anomalies** — all tanks within normal statistical bounds.\n`;
+  }
+
+  // Trends
+  resp += trendNote;
+
+  // Price
+  resp += priceNote;
+
+  // Narrative conclusion
+  resp += `\n\n**📖 The Story:**\n`;
+  if (anomalies.length > 0 && avgFill != null && avgFill < 40) {
+    resp += `Storage levels are running low across monitored hubs, with ${anomalies.length} anomalous reading${anomalies.length > 1 ? 's' : ''}. This could signal supply tightening — worth watching for price support.`;
+  } else if (avgFill != null && avgFill > 60) {
+    resp += `Storage is elevated, suggesting ample supply. If prices are also soft, this fits a contango storage play pattern. Watch for drawdowns as the market rebalances.`;
+  } else if (anomalies.length > 0) {
+    resp += `Most tanks are near baseline levels, but ${anomalies.length} anomal${anomalies.length > 1 ? 'ies' : 'y'} suggest localized activity worth monitoring. Individual tank movements may reflect regional supply shifts rather than a global trend.`;
+  } else {
+    resp += `Steady state across all hubs — no unusual activity detected. Storage levels are within normal ranges, suggesting balanced supply/demand conditions globally.`;
+  }
+
+  return resp;
+}
+
 // Smart local responses using dashboard data
 function tryLocalAnswer(query) {
   const q = query.toLowerCase();
@@ -1488,9 +1624,15 @@ function tryLocalAnswer(query) {
     return `📈 **Oil Price & Tank Signals**\n\nThe Daily Trend chart overlays WTI crude prices on per-tank fill signals.\n\n**Key dynamics:**\n• **Rising prices** → traders sell stored oil → fill levels tend to drop\n• **Falling prices** → traders buy & store cheap oil → fill levels tend to rise (contango)\n• **Flat prices** → inventory builds/draws follow seasonal patterns & refinery demand\n\n**What our data shows:**\n• SAR-based fill estimates measure **physical tank levels** via radar backscatter\n• WTI prices reflect **market expectations** of supply/demand\n• Cushing (US benchmark hub) shows the strongest price-fill correlation\n• Overseas hubs (Rotterdam, Fujairah, Singapore) respond more to regional factors\n\n_Check the **Correlation** tab above for time-series and scatter-plot analysis._`;
   }
 
-  // Explain / what is questions about the project
-  if (q.includes('explain') && !q.includes('price') && !q.includes('fill') && !q.includes('geopolit')) {
+  // Explain / what is questions about the project (only if NOT asking about data/metrics/findings)
+  if (q.includes('explain') && !q.includes('price') && !q.includes('fill') && !q.includes('geopolit') && !q.includes('metric') && !q.includes('finding') && !q.includes('data') && !q.includes('week') && !q.includes('story') && !q.includes('trend') && !q.includes('last') && !q.includes('recent')) {
     return `🛰️ **OTM-Agent in a Nutshell**\n\nWe use **satellites** (Sentinel-1 SAR) to monitor **oil storage tanks** around the world — like having eyes in space watching how full or empty they are.\n\n**4 global hubs monitored:**\n• Cushing 🇺🇸 • Rotterdam 🇳🇱 • Fujairah 🇦🇪 • Singapore 🇸🇬\n\n**How:** Radar bounces off tank surfaces. Full tanks = smooth surface = strong signal. Empty tanks = rough surface = weak signal. Our pipeline processes this daily and translates radar strength (dB) into fill percentages.\n\n**Why it matters:** Oil traders and analysts need to know global storage levels. More storage = oversupply risk. Less storage = shortage risk. This intelligence helps forecast prices.\n\nAsk me about any specific hub, tank, or trend!`;
+  }
+
+  // Data analysis / metrics / findings / story / weekly summary
+  if (q.includes('metric') || q.includes('finding') || q.includes('story') || q.includes('summar') || q.includes('analysis') || q.includes('analyz') || q.includes('insight') || q.includes('tell') ||
+      ((q.includes('last') || q.includes('recent') || q.includes('this')) && (q.includes('week') || q.includes('day')))) {
+    return buildDataAnalysis(data, curated, regions, tankFeatures);
   }
 
   // Latest fill / status queries (only for direct data requests, not analytical)
