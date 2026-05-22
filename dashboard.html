@@ -1341,8 +1341,8 @@ let chatHistory = JSON.parse(localStorage.getItem('otm-chat-history') || '[]');
 const SUGGESTED_QUESTIONS = [
   "What's the latest fill at Cushing?",
   "Any anomalies this week?",
+  "How does this system work?",
   "Compare Rotterdam vs Fujairah",
-  "How does oil price relate to tank levels?",
   "Which tanks show the most change?"
 ];
 
@@ -1576,6 +1576,23 @@ function tryLocalAnswer(query) {
       resp += `${i + 1}. **${t.tank_id}** (${t.region_code}): ${dir} ${Math.abs(t.delta_vv).toFixed(3)} dB — fill ${fill}${t.is_anomaly ? ' ⚠' : ''}\n`;
     });
     return resp;
+  }
+
+  // Project / architecture / methodology questions
+  if (q.includes('how') && (q.includes('work') || q.includes('system') || q.includes('built'))) {
+    return `🛰️ **How OTM Works**\n\nOTM uses **Sentinel-1 SAR** (Synthetic Aperture Radar) satellites to monitor oil storage tanks across 4 global hubs:\n\n**📡 Data Pipeline (daily)**\n1. **Stage 1** — SAR images downloaded via Google Earth Engine. C-band VV-polarized backscatter extracted per tank. Kalman filtering produces fill estimates.\n2. **Stage 2** — Market data (WTI, spreads, COT) joined with SAR features. 3 LightGBM classifiers: regime (65% acc), spread forecast, EIA surprise.\n3. **Stage 3** — Composite trading signals generated. Paper trading simulates execution.\n\n**🧠 Agent Layer**\nI'm the OTM-Agent — an LLM-orchestrated analyst that plans queries, executes skills (BigQuery, ML, compute), and synthesizes answers.\n\n**⏰ Schedule**: Pipeline runs daily 02:00–04:00 UTC on GCP Cloud Run.\n**📊 Coverage**: 10 tanks across Cushing, Rotterdam, Fujairah, Singapore.`;
+  }
+
+  if (q.includes('satellite') || q.includes('sar') || q.includes('sentinel') || q.includes('radar')) {
+    return `🛰️ **Satellite Data**\n\nWe use **Sentinel-1** — ESA's C-band SAR satellite constellation:\n\n• **Type**: Synthetic Aperture Radar (works day/night, through clouds)\n• **Band**: C-band, VV polarization\n• **Resolution**: ~10m ground resolution\n• **Revisit**: Every 6-12 days per location\n• **Source**: Downloaded via Google Earth Engine\n\n**How radar measures fill levels:**\n• Full tanks have smooth surfaces → **strong radar return** (less negative dB, e.g., -8 dB)\n• Empty/partial tanks have rough surfaces → **weak radar return** (more negative dB, e.g., -25 dB)\n• The fill_proxy (%) maps this signal to a 0-100% scale relative to each tank's own history\n\nTry the **dB ↔ Fill% explainer** above to see this relationship interactively!`;
+  }
+
+  if (q.includes('architecture') || q.includes('pipeline') || q.includes('stage') || q.includes('infrastructure')) {
+    return `🏗️ **System Architecture**\n\n**GCP Project**: oil-tank-monitoring-123\n**Region**: northamerica-northeast1\n\n**Pipeline Stages (Cloud Run Jobs):**\n• 02:00 UTC — Runner orchestrator\n• 03:00 UTC — Stage 2: SAR ingestion from Earth Engine\n• 04:00 UTC — Stage 3: Signal processing + fill estimation\n\n**Services:**\n• **otm-api-dev** — Dashboard REST API (BigQuery → JSON)\n• **otm-agent-chat** — This agent (LLM + skills)\n\n**Storage:**\n• BigQuery: otm_staging → otm_curated → otm_serving\n• 10 tanks across 4 facilities\n\n**Frontend:**\n• GitHub Pages: oguzhan-canada.github.io/otm-agent-site\n• Watchdog: GitHub Actions daily at 14:00 UTC\n\nSee the **Architecture** tab for full diagrams.`;
+  }
+
+  if (q.includes('hub') || q.includes('region') || q.includes('location') || q.includes('where') || q.includes('monitor')) {
+    return `🌍 **Monitored Hubs**\n\n• **Cushing, Oklahoma** 🇺🇸 — US benchmark hub, WTI delivery point (4 tanks: 2 north, 2 south)\n• **Rotterdam, Netherlands** 🇳🇱 — European ARA trading hub (2 tanks)\n• **Fujairah, UAE** 🇦🇪 — Middle East storage hub (2 tanks)\n• **Singapore** 🇸🇬 — Asia-Pacific trading hub (2 tanks)\n\n**10 tanks total** across 4 facilities, monitored via Sentinel-1 SAR every 6-12 days.`;
   }
 
   return null; // Fall through to agent API
