@@ -865,13 +865,22 @@ function drawTrend(tankId) {
   let effectiveUnit = currentUnit;
   if (!hasAnyProxy && currentUnit === 'pct') effectiveUnit = 'db';
 
-  // Filter history to selected day range
-  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  // Sort all history chronologically
+  const sorted = history.filter(h => h.obs_date).sort((a, b) => a.obs_date.localeCompare(b.obs_date));
 
-  // Build SAR data points (filtered by days)
-  const dataPoints = history
-    .filter(h => h.obs_date && h.obs_date >= cutoff)
-    .sort((a, b) => a.obs_date.localeCompare(b.obs_date))
+  // Determine effective cutoff: use requested period, but if fewer than
+  // 3 SAR observations fall within it, extend back to include at least 5
+  let cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  const inRange = sorted.filter(h => h.obs_date >= cutoff);
+  if (inRange.length < 3 && sorted.length >= 3) {
+    // Take last 5 observations (or all if fewer)
+    const minObs = Math.min(sorted.length, Math.max(5, inRange.length));
+    cutoff = sorted[sorted.length - minObs].obs_date;
+  }
+
+  // Build SAR data points
+  const dataPoints = sorted
+    .filter(h => h.obs_date >= cutoff)
     .map(h => ({
       x: h.obs_date,
       db: h.mean_vv !== null ? parseFloat(h.mean_vv.toFixed(2)) : null,
