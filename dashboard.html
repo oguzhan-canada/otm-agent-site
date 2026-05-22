@@ -1466,6 +1466,145 @@ function buildDashboardContext() {
   return ctx;
 }
 
+// Build a tank-specific analysis — rich response with price overlay when relevant
+function buildTankAnalysis(tankId, tank, tf, data, q) {
+  let resp = `🛢️ **${tankId} — Deep Analysis** (${data.obs_date})\n\n`;
+
+  // Current snapshot
+  const fill = tank.fill_proxy != null ? Math.round(tank.fill_proxy) : null;
+  resp += `**Current State:**\n`;
+  resp += `• Fill estimate: **${fill != null ? fill + '%' : 'N/A'}**\n`;
+  resp += `• Z-score: ${tank.vv_zscore != null ? tank.vv_zscore.toFixed(2) : 'N/A'}`;
+  resp += tank.is_anomaly ? ' ⚠ **anomaly**' : ' (normal)';
+  resp += `\n• Signal change (ΔdB): ${tank.delta_vv != null ? tank.delta_vv.toFixed(3) : 'N/A'} dB\n`;
+  resp += `• Region: **${tank.region_code}**\n`;
+  if (tf) {
+    resp += `• Mean VV: ${tf.mean_vv != null ? tf.mean_vv.toFixed(2) : 'N/A'} dB\n`;
+    resp += `• VV range: ${tf.min_vv != null ? tf.min_vv.toFixed(2) : '?'} to ${tf.max_vv != null ? tf.max_vv.toFixed(2) : '?'} dB\n`;
+  }
+  resp += `• Baseline weeks: ${tank.baseline_weeks || 'N/A'}\n`;
+
+  // History trend if available
+  const hist = historyData[tankId];
+  if (hist && hist.length >= 2) {
+    const recent = hist.slice(-7);
+    const firstObs = recent[0];
+    const lastObs = recent[recent.length - 1];
+    const firstFill = firstObs.fill_proxy ?? vvToPct(firstObs.mean_vv);
+    const lastFill = lastObs.fill_proxy ?? vvToPct(lastObs.mean_vv);
+    const fillDelta = lastFill - firstFill;
+    const dir = fillDelta > 2 ? '📈 **rising**' : fillDelta < -2 ? '📉 **falling**' : '➡️ **stable**';
+
+    resp += `\n**📊 Recent Trend** (last ${recent.length} observations):\n`;
+    resp += `• ${firstObs.obs_date}: ${Math.round(firstFill)}% → ${lastObs.obs_date}: ${Math.round(lastFill)}%\n`;
+    resp += `• Direction: ${dir} (${fillDelta > 0 ? '+' : ''}${fillDelta.toFixed(1)}%)\n`;
+
+    // dB values
+    const firstDb = firstObs.mean_vv;
+    const lastDb = lastObs.mean_vv;
+    if (firstDb != null && lastDb != null) {
+      const dbDelta = lastDb - firstDb;
+      resp += `• Radar: ${firstDb.toFixed(2)} dB → ${lastDb.toFixed(2)} dB (${dbDelta > 0 ? '+' : ''}${dbDelta.toFixed(2)} dB)\n`;
+    }
+
+    // Mini sparkline of recent fill values
+    resp += `• Observations: `;
+    recent.forEach(r => {
+      const f = r.fill_proxy ?? vvToPct(r.mean_vv);
+      resp += `${Math.round(f)}% `;
+    });
+    resp += `\n`;
+  }
+
+  // Price-fill relationship if user asks about price/fill/relation/correlation
+  const wantsPriceAnalysis = q.includes('price') || q.includes('fill') || q.includes('relation') || q.includes('correlat') || q.includes('wti') || q.includes('analysis') || q.includes('analyz');
+
+  if (wantsPriceAnalysis && hist && hist.length >= 3) {
+    const priceDates = Object.keys(wtiPriceCache).sort();
+    if (priceDates.length > 0) {
+    resp += `\n**💰 Price vs. Fill Analysis:**\n`;
+
+    let pairs = [];
+    hist.forEach(h => {
+      const f = h.fill_proxy ?? vvToPct(h.mean_vv);
+      const date = h.obs_date;
+      // Try exact date match or nearby (±3 days)
+      let price = wtiPriceCache[date];
+      if (price == null) {
+        const d = new Date(date);
+        for (let offset = 1; offset <= 3 && price == null; offset++) {
+          const d1 = new Date(d); d1.setDate(d1.getDate() - offset);
+          const d2 = new Date(d); d2.setDate(d2.getDate() + offset);
+          price = wtiPriceCache[d1.toISOString().slice(0, 10)] || wtiPriceCache[d2.toISOString().slice(0, 10)];
+        }
+      }
+      if (price != null && f != null) pairs.push({ date, fill: f, price: Number(price) });
+    });
+
+    if (pairs.length >= 3) {
+      // Compute simple correlation
+      const n = pairs.length;
+      const meanP = pairs.reduce((s, p) => s + p.price, 0) / n;
+      const meanF = pairs.reduce((s, p) => s + p.fill, 0) / n;
+      let num = 0, denP = 0, denF = 0;
+      pairs.forEach(p => {
+        const dp = p.price - meanP;
+        const df = p.fill - meanF;
+        num += dp * df;
+        denP += dp * dp;
+        denF += df * df;
+      });
+      const r = (denP > 0 && denF > 0) ? num / Math.sqrt(denP * denF) : 0;
+
+      // Price range over period
+      const minPrice = Math.min(...pairs.map(p => p.price));
+      const maxPrice = Math.max(...pairs.map(p => p.price));
+      const latestPair = pairs[pairs.length - 1];
+      const firstPair = pairs[0];
+
+      resp += `• WTI range: $${minPrice.toFixed(2)} – $${maxPrice.toFixed(2)}/bbl over ${n} paired observations\n`;
+      resp += `• Correlation (r): **${r.toFixed(3)}**`;
+      if (Math.abs(r) > 0.5) resp += r > 0 ? ' — **positive** (fill rises with price)' : ' — **negative** (fill falls as price rises, classic contango)';
+      else if (Math.abs(r) > 0.2) resp += ' — **weak** relationship';
+      else resp += ' — **no clear** linear relationship';
+      resp += `\n`;
+
+      // Interpretation
+      resp += `\n**🔍 Interpretation:**\n`;
+      const priceTrend = latestPair.price > firstPair.price ? 'rising' : latestPair.price < firstPair.price ? 'falling' : 'flat';
+      const fillTrend = latestPair.fill > firstPair.fill + 2 ? 'rising' : latestPair.fill < firstPair.fill - 2 ? 'falling' : 'stable';
+
+      if (priceTrend === 'falling' && fillTrend === 'rising') {
+        resp += `Prices fell while fill rose — consistent with **contango storage**. Traders may be buying cheap crude and storing it, expecting higher future prices.\n`;
+      } else if (priceTrend === 'rising' && fillTrend === 'falling') {
+        resp += `Prices rose while fill dropped — consistent with **inventory drawdown**. Stored oil is being sold into a strengthening market.\n`;
+      } else if (priceTrend === 'rising' && fillTrend === 'rising') {
+        resp += `Both price and fill are rising — suggests **strong demand** outpacing supply adjustments. ${tank.region_code === 'fujairah' ? 'Fujairah as a Middle East hub may be seeing pre-emptive stockpiling amid geopolitical uncertainty.' : 'Could indicate strategic building ahead of expected disruptions.'}\n`;
+      } else if (priceTrend === 'falling' && fillTrend === 'falling') {
+        resp += `Both price and fill are falling — suggests **demand destruction** or seasonal drawdown. Markets may be pricing in lower future demand.\n`;
+      } else {
+        resp += `Price is ${priceTrend}, fill is ${fillTrend}. The decoupling suggests **regional factors** (maintenance, cargo timing, refinery schedules) outweigh global price signals for this tank.\n`;
+      }
+
+      // Regional geopolitical context
+      const regionNotes = {
+        cushing: 'As the WTI delivery point, Cushing shows the tightest price-fill coupling. US SPR releases, shale production changes, and pipeline flows directly impact levels.',
+        rotterdam: 'Rotterdam serves as Europe\'s key hub. Russian sanctions, North Sea production, and refinery maintenance drive regional dynamics beyond WTI price.',
+        fujairah: 'Fujairah acts as a Middle East buffer. OPEC+ production decisions, Strait of Hormuz tensions, and Asian demand create fill patterns that may diverge from WTI.',
+        singapore: 'Singapore reflects Asian demand. China import policy, Indian refining activity, and regional monsoon seasons influence tank levels independently of WTI.'
+      };
+      if (regionNotes[tank.region_code]) {
+        resp += `\n**🌍 Regional Context:** ${regionNotes[tank.region_code]}\n`;
+      }
+    } else {
+      resp += `Only ${pairs.length} paired price-fill observations available — need ≥3 for correlation analysis. More data will accumulate as the pipeline runs daily.\n`;
+    }
+    } // end priceDates.length > 0
+  }
+
+  return resp;
+}
+
 // Build a data-driven analytical narrative from dashboard + history data
 function buildDataAnalysis(data, curated, regions, tankFeatures) {
   const obs = data.obs_date;
@@ -1522,14 +1661,17 @@ function buildDataAnalysis(data, curated, regions, tankFeatures) {
 
   // WTI price context
   let priceNote = '';
-  if (typeof wtiPriceCache !== 'undefined' && wtiPriceCache.length > 0) {
-    const latestPrice = wtiPriceCache[wtiPriceCache.length - 1];
-    const weekAgo = wtiPriceCache.length >= 5 ? wtiPriceCache[wtiPriceCache.length - 5] : null;
-    priceNote = `\n\n**💰 WTI Crude**: $${Number(latestPrice.Price).toFixed(2)}/bbl (${latestPrice.Date})`;
-    if (weekAgo) {
-      const priceDiff = Number(latestPrice.Price) - Number(weekAgo.Price);
+  const priceDates = Object.keys(wtiPriceCache).sort();
+  if (priceDates.length > 0) {
+    const latestDate = priceDates[priceDates.length - 1];
+    const latestVal = Number(wtiPriceCache[latestDate]);
+    const weekAgoDate = priceDates.length >= 5 ? priceDates[priceDates.length - 5] : null;
+    priceNote = `\n\n**💰 WTI Crude**: $${latestVal.toFixed(2)}/bbl (${latestDate})`;
+    if (weekAgoDate) {
+      const weekAgoVal = Number(wtiPriceCache[weekAgoDate]);
+      const priceDiff = latestVal - weekAgoVal;
       const dir = priceDiff > 0 ? '↑' : priceDiff < 0 ? '↓' : '→';
-      priceNote += ` — ${dir} $${Math.abs(priceDiff).toFixed(2)} vs. ${weekAgo.Date}`;
+      priceNote += ` — ${dir} $${Math.abs(priceDiff).toFixed(2)} vs. ${weekAgoDate}`;
     }
   }
 
@@ -1612,9 +1754,20 @@ function tryLocalAnswer(query) {
   const regions = data.region_signal || [];
   const tankFeatures = data.tank_features || [];
 
-  // ── Analytical / conceptual questions (check FIRST to avoid false matches) ──
+  // ── Tank-specific queries (check FIRST — if user names a tank, always prioritize) ──
+  const tankMatch = q.match(/([a-z]{3}_[a-z]{2}_t\d{2})/);
+  if (tankMatch) {
+    const tankId = tankMatch[1];
+    const tank = curated.find(t => t.tank_id === tankId);
+    const tf = tankFeatures.find(t => t.tank_id === tankId);
+    if (tank) {
+      return buildTankAnalysis(tankId, tank, tf, data, q);
+    }
+  }
 
-  // Price-fill relationship / geopolitics / correlation
+  // ── Analytical / conceptual questions ──
+
+  // Price-fill relationship / geopolitics / correlation (generic, no specific tank)
   if ((q.includes('price') && q.includes('fill')) || q.includes('geopolit') || (q.includes('relation') && (q.includes('price') || q.includes('oil'))) || (q.includes('correlat') && q.includes('fill'))) {
     return `📈 **Oil Price vs. Tank Fill Levels — The Relationship**\n\n**The basics:** When oil prices **drop**, traders buy cheap crude and store it → tank fill levels **rise**. When prices **rise**, stored oil gets sold → fill levels **drop**. This is called the **contango trade** (store now, sell later at higher futures price).\n\n**How we see it:** Our SAR radar measures physical tank surfaces. Fuller tanks have smoother surfaces → stronger radar return (less negative dB). The Daily Trend chart overlays WTI crude prices on fill signals so you can spot these patterns.\n\n**Geopolitical factors that affect both:**\n• 🇸🇦 **OPEC+ production cuts** → reduced supply → prices rise, fill levels drop\n• 🇷🇺 **Sanctions/embargoes** → rerouted trade flows → Fujairah & Singapore may see unusual builds\n• 🇺🇸 **SPR releases** → Cushing fill levels spike as government barrels enter the market\n• 🌍 **Conflict/disruption** (Strait of Hormuz, Red Sea) → shipping delays → regional fill divergence\n• 📊 **EIA weekly reports** → inventory surprises cause price swings within hours\n\n**Regional dynamics:**\n• **Cushing** — most price-sensitive (WTI delivery point). Fill tracks US supply/demand tightly\n• **Rotterdam** — European Brent benchmark hub. Affected by Russian gas/oil policy\n• **Fujairah** — Middle East buffer. Fill levels respond to OPEC decisions\n• **Singapore** — Asia demand barometer. China import policy drives levels\n\n_Check the Correlation tab above for scatter-plot analysis of price vs. signal._`;
   }
@@ -1702,27 +1855,6 @@ function tryLocalAnswer(query) {
   // Oil price / correlation
   if (q.includes('oil price') || q.includes('wti') || q.includes('crude') || q.includes('correlat')) {
     return `📈 **Oil Price & Tank Signals**\n\nThe Daily Trend chart (scroll up) overlays WTI crude prices on per-tank fill signals. Key observations:\n\n• SAR-based fill estimates measure **physical tank levels** via radar backscatter\n• WTI prices reflect **market expectations** of supply/demand\n• Correlation is indirect — rising prices may precede drawdowns (selling stored oil), while falling prices may lead to builds (storing cheap oil)\n• Check the **Correlation** tab above for time-series and scatter-plot analysis\n\n_The relationship varies by region — Cushing (US benchmark hub) tends to show stronger price-fill correlation than overseas hubs._`;
-  }
-
-  // Tank-specific query
-  const tankMatch = q.match(/([a-z]{3}_[a-z]{2}_t\d{2})/);
-  if (tankMatch) {
-    const tankId = tankMatch[1];
-    const tank = curated.find(t => t.tank_id === tankId);
-    const tf = tankFeatures.find(t => t.tank_id === tankId);
-    if (tank) {
-      let resp = `🛢️ **${tankId}** — ${data.obs_date}\n\n`;
-      resp += `• Fill proxy: **${tank.fill_proxy != null ? Math.round(tank.fill_proxy) + '%' : 'N/A'}**\n`;
-      resp += `• Z-score: ${tank.vv_zscore != null ? tank.vv_zscore.toFixed(2) : 'N/A'}`;
-      resp += tank.is_anomaly ? ' ⚠ anomaly' : ' (normal)';
-      resp += `\n• Delta VV: ${tank.delta_vv != null ? tank.delta_vv.toFixed(3) : 'N/A'} dB\n`;
-      resp += `• Baseline weeks: ${tank.baseline_weeks || 'N/A'}\n`;
-      if (tf) {
-        resp += `• Mean VV: ${tf.mean_vv != null ? tf.mean_vv.toFixed(2) : 'N/A'} dB\n`;
-        resp += `• VV range: ${tf.min_vv != null ? tf.min_vv.toFixed(2) : '?'} to ${tf.max_vv != null ? tf.max_vv.toFixed(2) : '?'} dB\n`;
-      }
-      return resp;
-    }
   }
 
   // Which tanks changed the most
