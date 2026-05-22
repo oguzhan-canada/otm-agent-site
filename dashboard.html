@@ -549,7 +549,7 @@
     </div>
     <div class="chart-wrap-tall"><canvas id="corrChart"></canvas></div>
     <div class="note">
-      <strong>What this shows:</strong> WTI crude oil spot price (EIA public data, no weekends/holidays) plotted against the daily average radar signal across all 13 monitored tanks. <strong>Time series</strong> view uses dual y-axes: left = USD/bbl, right = dB. <strong>Scatter</strong> view plots price on x-axis vs. fill % on y-axis to reveal correlation directly. The Pearson coefficient (r) quantifies linear relationship: &plusmn;1 = perfect, 0 = none. A negative r between price and fill % would confirm the economic hypothesis that rising prices coincide with inventory draws. This analysis becomes more meaningful as observation days accumulate.
+      <strong>What this shows:</strong> WTI crude oil spot price (EIA public data, no weekends/holidays — typically 2–3 business day publication lag) plotted against the daily average radar signal across all 13 monitored tanks. <strong>Time series</strong> view uses dual y-axes: left = USD/bbl, right = dB. <strong>Scatter</strong> view plots price on x-axis vs. fill % on y-axis to reveal correlation directly. The Pearson coefficient (r) quantifies linear relationship: &plusmn;1 = perfect, 0 = none. A negative r between price and fill % would confirm the economic hypothesis that rising prices coincide with inventory draws. This analysis becomes more meaningful as observation days accumulate.
     </div>
   </div>
 
@@ -1061,21 +1061,28 @@ function setCorrView(view) {
   if (corrJoined.length) drawCorrChart(corrJoined);
 }
 async function fetchOilPrices(days) {
-  try {
-    const resp = await fetch('https://raw.githubusercontent.com/datasets/oil-prices/master/data/wti-daily.csv');
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const text = await resp.text();
-    const lines = text.trim().split('\n').slice(1);
-    const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
-    const prices = {};
-    for (const line of lines) {
-      const [date, price] = line.split(',');
-      if (date >= cutoff && price) prices[date] = parseFloat(price);
-    }
-    // Cache all fetched prices for trend overlay
-    Object.assign(wtiPriceCache, prices);
-    return prices;
-  } catch (e) { console.warn('Oil price fetch failed:', e.message); return {}; }
+  const sources = [
+    'https://raw.githubusercontent.com/datasets/oil-prices/main/data/wti-daily.csv',
+    'https://raw.githubusercontent.com/datasets/oil-prices/master/data/wti-daily.csv'
+  ];
+  for (const url of sources) {
+    try {
+      const resp = await fetch(url + '?_=' + Date.now(), { cache: 'no-store' });
+      if (!resp.ok) continue;
+      const text = await resp.text();
+      const lines = text.trim().split('\n').slice(1);
+      if (lines.length < 10) continue;
+      const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+      const prices = {};
+      for (const line of lines) {
+        const [date, price] = line.split(',');
+        if (date >= cutoff && price) prices[date] = parseFloat(price);
+      }
+      Object.assign(wtiPriceCache, prices);
+      return prices;
+    } catch (e) { console.warn('Oil price fetch failed for', url, e.message); }
+  }
+  return {};
 }
 function computeDailyAverages(tankHistory) {
   const byDate = {};
