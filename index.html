@@ -1,214 +1,1986 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OTM-Agent — Satellite-Based Commodity Intelligence</title>
-<meta name="description" content="OTM-Agent: an LLM-orchestrated agentic system for satellite-based oil tank monitoring and commodity intelligence.">
+<title>Live Dashboard — OTM-Agent</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff;
+    --bg2: #fafafa;
+    --bg3: #f4f4f4;
+    --text: #111111;
+    --text2: #555555;
+    --text3: #999999;
+    --border: #e8e8e8;
+    --border2: #d4d4d4;
+    --radius: 6px;
+    --radius-lg: 10px;
+    --accent: #0066CC;
+    --teal: #0d9e75;
+    --blue: #0066CC;
+    --amber: #c47a00;
+    --red: #cc2222;
+    --green: #3a7a00;
+    --ok-bg: #f0f7e6;     --ok-text: #2d6300;
+    --warn-bg: #fff7e6;   --warn-text: #7a4500;
+    --err-bg: #fff0f0;    --err-text: #990000;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111111; --bg2: #1a1a1a; --bg3: #222222;
+      --text: #eeeeee; --text2: #aaaaaa; --text3: #666666;
+      --border: #2a2a2a; --border2: #383838;
+      --accent: #4d9fff;
+      --ok-bg: #182810;   --ok-text: #7dcc44;
+      --warn-bg: #241800; --warn-text: #ffb84d;
+      --err-bg: #220000;  --err-text: #ff7777;
+      --shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem; }
+
+  /* ── Header ── */
+  header {
+    display: flex; align-items: center; gap: 16px;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2.5rem;
+    flex-wrap: wrap;
+  }
+  .header-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--accent); display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .header-icon svg { width: 16px; height: 16px; fill: #fff; }
+  header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  header p { font-size: 15px; font-weight: 500; color: var(--text2); margin-left: auto; letter-spacing: -0.1px; }
+
+  /* ── About ── */
+  .about {
+    border-left: 2px solid var(--border2);
+    padding: 0.85rem 1.25rem;
+    margin-bottom: 2.5rem;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text2);
+  }
+  .about strong { color: var(--text); font-weight: 500; }
+
+  /* ── Hub grid ── */
+  .hub-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 2.5rem;
+  }
+  @media(max-width:700px){ .hub-grid { grid-template-columns: repeat(2,1fr); } }
+  .hub-card { background: var(--bg); padding: 1.25rem 1.25rem 1rem; }
+  .hub-name { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .hub-cap { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 500; color: var(--text); letter-spacing: -0.5px; }
+  .hub-unit { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .hub-role { font-size: 11.5px; color: var(--text2); margin-top: 8px; line-height: 1.55; }
+  .hub-badge {
+    display: inline-block; font-size: 10px; padding: 2px 8px;
+    border-radius: 20px; font-weight: 500; margin-top: 10px;
+    border: 1px solid currentColor; opacity: 0.75;
+  }
+  .hub-badge-blue   { color: var(--accent); }
+  .hub-badge-green  { color: var(--teal); }
+  .hub-badge-amber  { color: var(--amber); }
+  .hub-badge-purple { color: #7755cc; }
+
+  /* ── Section label ── */
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text3);
+    margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::before {
+    content: ''; display: block;
+    width: 16px; height: 1px; background: var(--border2);
+  }
+
+  /* ── Metrics ── */
+  .metric-grid {
+    display: grid; grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    overflow: hidden; margin-bottom: 2.5rem;
+  }
+  @media(max-width:640px){ .metric-grid { grid-template-columns: repeat(2,1fr); } }
+  .metric { background: var(--bg); padding: 1.25rem 1.25rem 1rem; }
+  .metric-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .metric-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 26px; font-weight: 500; color: var(--text);
+    letter-spacing: -0.5px; line-height: 1;
+  }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* ── Layout ── */
+  .two-col {
+    display: grid; grid-template-columns: minmax(0,1.35fr) minmax(0,1fr);
+    gap: 1.5rem; margin-bottom: 2rem; align-items: stretch;
+  }
+  .two-col > div { display: flex; flex-direction: column; }
+  @media(max-width:760px){ .two-col { grid-template-columns: 1fr; } }
+
+  /* ── Card ── */
+  .card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .card-title {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    margin-bottom: 1rem; letter-spacing: -0.1px;
+  }
+  .obs-date { font-size: 11px; color: var(--text3); margin-bottom: 1rem; }
+
+  /* ── Table headers ── */
+  .col-head {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 6px; margin-bottom: 2px;
+  }
+  .ch {
+    font-size: 10px; font-weight: 600; color: var(--text3);
+    text-transform: uppercase; letter-spacing: .07em;
+  }
+
+  /* ── Tank rows ── */
+  .tank-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 6px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background .12s; border-radius: 4px;
+  }
+  .tank-row:last-child { border-bottom: none; }
+  .tank-row:hover { background: var(--bg2); }
+  .tank-row.active { background: var(--bg2); outline: 1.5px solid var(--accent); outline-offset: -1px; }
+  .tank-id { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; color: var(--text); width: 76px; flex-shrink: 0; }
+  .tank-region { font-size: 11px; color: var(--text3); width: 68px; flex-shrink: 0; }
+  .bar-wrap { flex: 1; background: var(--bg3); border-radius: 2px; height: 5px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; min-width: 3px; }
+  .tank-db  { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text2); width: 60px; text-align: right; flex-shrink: 0; }
+  .tank-pct { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--text); width: 44px; text-align: right; flex-shrink: 0; }
+
+  /* ── Badges ── */
+  .badge {
+    font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    font-weight: 500; flex-shrink: 0; white-space: nowrap;
+  }
+  .badge-ok   { background: var(--ok-bg);   color: var(--ok-text);   }
+  .badge-ins  { background: var(--warn-bg);  color: var(--warn-text); }
+  .badge-anom { background: var(--err-bg);   color: var(--err-text);  }
+
+  /* ── Region rows ── */
+  .region-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 6px; border-bottom: 1px solid var(--border);
+  }
+  .region-row:last-child { border-bottom: none; }
+  .region-name { font-size: 12px; font-weight: 500; color: var(--text); width: 80px; flex-shrink: 0; }
+  .gauge-wrap { flex: 1; background: var(--bg3); border-radius: 2px; height: 6px; overflow: hidden; }
+  .gauge-fill { height: 100%; border-radius: 2px; min-width: 3px; }
+  .region-val  { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text2); width: 60px; text-align: right; flex-shrink: 0; }
+  .region-pct  { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--text); width: 44px; text-align: right; flex-shrink: 0; }
+  .region-imgs { font-size: 11px; color: var(--text3); width: 50px; text-align: right; flex-shrink: 0; }
+
+  /* ── Status ── */
+  .status-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot-ok { background: #22aa44; } .dot-ins { background: #cc8800; } .dot-anom { background: #cc2222; }
+
+  /* ── Legend ── */
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text2); margin-bottom: 5px; }
+  .legend-sw { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── Charts ── */
+  .chart-wrap { position: relative; width: 100%; height: 200px; margin-top: 1rem; }
+  .chart-wrap-tall { position: relative; width: 100%; height: 260px; margin-top: 1rem; }
+
+  /* ── Misc ── */
+  .refresh { font-size: 11px; color: var(--text3); text-align: right; margin-top: .5rem; }
+  .note {
+    font-size: 11.5px; color: var(--text3); line-height: 1.7;
+    margin-top: 1rem; padding-top: .85rem;
+    border-top: 1px solid var(--border);
+  }
+  .note strong { color: var(--text2); font-weight: 500; }
+
+  /* ── Banners ── */
+  .banner-warn  { background: var(--warn-bg); color: var(--warn-text); border-radius: var(--radius); padding: .7rem 1rem; font-size: 12px; margin-top: .75rem; line-height: 1.6; }
+  .banner-error { background: var(--err-bg);  color: var(--err-text);  border-radius: var(--radius); padding: .6rem 1rem; font-size: 12.5px; margin-bottom: .75rem; }
+  .banner-stale { background: var(--warn-bg); color: var(--warn-text); border-radius: var(--radius); padding: .7rem 1rem; font-size: 12px; margin-bottom: 1.5rem; line-height: 1.6; }
+  .banner-error code, .banner-stale code { background: rgba(0,0,0,0.08); padding: 2px 5px; border-radius: 3px; font-size: 11px; word-break: break-all; }
+
+  /* ── Trend controls ── */
+  .trend-panel { margin-bottom: 1.5rem; }
+  .trend-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .trend-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .selected-tank { font-size: 12px; color: var(--accent); font-weight: 500; }
+  .unit-toggle {
+    display: flex; border: 1px solid var(--border2);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .unit-btn {
+    padding: 4px 12px; font-size: 11.5px; font-family: 'Inter', sans-serif;
+    background: var(--bg); color: var(--text3); border: none; cursor: pointer;
+    transition: background .1s, color .1s;
+  }
+  .unit-btn.active { background: var(--text); color: var(--bg); }
+  .days-select {
+    font-size: 12px; padding: 4px 8px; border-radius: var(--radius);
+    border: 1px solid var(--border2); background: var(--bg); color: var(--text);
+    cursor: pointer; font-family: 'Inter', sans-serif;
+  }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 3rem; font-size: 11px; color: var(--text3);
+    border-top: 1px solid var(--border); padding-top: 1.25rem;
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px;
+  }
+
+  /* ── Agent Chat Widget ── */
+  .chat-fab {
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, #0066CC, #4d9fff);
+    border: none; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,102,204,0.35);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(0,102,204,0.45); }
+  .chat-fab svg { width: 26px; height: 26px; fill: #fff; }
+  .chat-fab .chat-badge {
+    position: absolute; top: -2px; right: -2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #3a7a00; border: 2px solid var(--bg);
+  }
+
+  .chat-panel {
+    position: fixed; bottom: 92px; right: 24px; z-index: 9998;
+    width: 380px; max-height: 520px;
+    background: var(--bg); border: 1px solid var(--border2);
+    border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    display: none; flex-direction: column; overflow: hidden;
+  }
+  .chat-panel.open { display: flex; }
+  @media(max-width:480px) {
+    .chat-panel { left: 8px; right: 8px; bottom: 88px; width: auto; max-height: 70vh; }
+  }
+
+  .chat-header {
+    padding: 14px 16px; background: linear-gradient(135deg, #0066CC, #4d9fff);
+    color: #fff; display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0;
+  }
+  .chat-header-icon { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
+  .chat-header-icon svg { width: 16px; height: 16px; fill: #fff; }
+  .chat-header-title { font-size: 14px; font-weight: 600; }
+  .chat-header-sub { font-size: 11px; opacity: 0.8; }
+  .chat-close {
+    margin-left: auto; background: none; border: none; color: #fff;
+    font-size: 20px; cursor: pointer; opacity: 0.7; padding: 4px;
+  }
+  .chat-close:hover { opacity: 1; }
+
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 12px;
+    min-height: 200px;
+  }
+
+  .chat-msg {
+    max-width: 85%; padding: 10px 14px;
+    font-size: 13px; line-height: 1.5;
+    border-radius: 14px; word-break: break-word;
+  }
+  .chat-msg.bot {
+    align-self: flex-start;
+    background: var(--bg3); color: var(--text);
+    border-bottom-left-radius: 4px;
+  }
+  .chat-msg.user {
+    align-self: flex-end;
+    background: #0066CC; color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .chat-msg.system {
+    align-self: center; text-align: center;
+    font-size: 11px; color: var(--text3);
+    background: none; padding: 4px 8px;
+  }
+
+  .chat-typing {
+    align-self: flex-start; display: none;
+    gap: 4px; padding: 10px 14px;
+    background: var(--bg3); border-radius: 14px;
+    border-bottom-left-radius: 4px;
+  }
+  .chat-typing.active { display: flex; }
+  .chat-typing span {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--text3); animation: chatBounce 1.2s infinite;
+  }
+  .chat-typing span:nth-child(2) { animation-delay: 0.2s; }
+  .chat-typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes chatBounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
+  }
+
+  .chat-input-area {
+    padding: 12px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px; flex-shrink: 0;
+  }
+  .chat-input {
+    flex: 1; padding: 9px 14px; border-radius: 20px;
+    border: 1px solid var(--border2); background: var(--bg2);
+    color: var(--text); font-size: 13px; font-family: 'Inter', sans-serif;
+    outline: none; resize: none;
+  }
+  .chat-input:focus { border-color: var(--accent); }
+  .chat-send {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #0066CC; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: background .15s;
+  }
+  .chat-send:hover { background: #0055aa; }
+  .chat-send:disabled { background: var(--border2); cursor: default; }
+  .chat-send svg { width: 16px; height: 16px; fill: #fff; }
+
+  .chat-suggestions {
+    display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px;
+  }
+  .chat-sug-btn {
+    font-size: 11.5px; padding: 6px 12px; border-radius: 16px;
+    border: 1px solid var(--border2); background: var(--bg2);
+    color: var(--text2); cursor: pointer; font-family: 'Inter', sans-serif;
+    transition: background .1s, color .1s;
+  }
+  .chat-sug-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+</style>
 </head>
 <body>
-<nav>
-  <div class="nav-inner">
-    <a href="index.html" class="nav-logo">OTM<span>-Agent</span></a>
-    <div class="nav-links">
-      <a href="index.html" class="active">Home</a>
-      <a href="architecture.html">Architecture</a>
-      <a href="methods.html">Methods</a>
-      <a href="benchmarks.html">Benchmarks</a>
-      <a href="dashboard.html">Dashboard</a>
-      <a href="about.html">About</a>
+<nav style="position:sticky;top:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--border);backdrop-filter:blur(12px)">
+  <div style="max-width:1100px;margin:0 auto;padding:0 2rem;display:flex;align-items:center;height:48px;gap:8px">
+    <a href="index.html" style="font-weight:600;font-size:15px;color:var(--text);text-decoration:none;margin-right:1.5rem;letter-spacing:-0.3px">OTM<span style="color:#4d9fff">-Agent</span></a>
+    <div style="display:flex;gap:4px;flex-wrap:wrap">
+      <a href="architecture.html" style="font-size:13px;color:var(--text3);text-decoration:none;padding:6px 10px;border-radius:6px">Architecture</a>
+      <a href="methods.html" style="font-size:13px;color:var(--text3);text-decoration:none;padding:6px 10px;border-radius:6px">Methods</a>
+      <a href="benchmarks.html" style="font-size:13px;color:var(--text3);text-decoration:none;padding:6px 10px;border-radius:6px">Benchmarks</a>
+      <a href="dashboard.html" style="font-size:13px;color:var(--text);text-decoration:none;padding:6px 10px;border-radius:6px;background:var(--bg2)">Dashboard</a>
+
+      <a href="about.html" style="font-size:13px;color:var(--text3);text-decoration:none;padding:6px 10px;border-radius:6px">About</a>
     </div>
-    <div class="nav-right">
-      <a href="https://github.com/oguzhan-canada/otm-agent-site" style="color:var(--text3);font-size:13px">GitHub</a>
-      <button class="theme-toggle" onclick="toggleTheme()">☀/☾</button>
+    <div style="margin-left:auto">
+      <a href="https://github.com/oguzhan-canada/otm-agent-site" style="color:var(--text3);font-size:13px;text-decoration:none">GitHub</a>
     </div>
   </div>
 </nav>
-
 <div class="page">
 
-  <h1>OTM-Agent</h1>
-  <p class="subtitle">An LLM-orchestrated agentic system that wraps an operational oil tank SAR monitoring pipeline with a typed skill library, four-tier memory, Bayesian persona vectors, and multi-objective reward — evaluated on 12+ months of out-of-sample data.</p>
+  <header>
+    <div class="header-icon">
+      <svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 2a5 5 0 110 10A5 5 0 018 3zm0 2a3 3 0 100 6 3 3 0 000-6z"/></svg>
+    </div>
+    <h1>Oil Tank SAR Monitor</h1>
+    <p>Sentinel-1 · Cushing · Rotterdam · Fujairah · Singapore</p>
+  </header>
 
-  <div class="section-label">System at a glance</div>
+  <div class="about">
+    <strong>Why these four hubs?</strong> Cushing, Rotterdam, Fujairah, and Singapore sit at the intersection of every major oil pricing region on earth. <strong>Cushing</strong> (Oklahoma, USA) holds ~91 million barrels of storage — the world's largest tank farm — and is the physical delivery point for the WTI crude futures contract, the most traded commodity benchmark in the world. <strong>Rotterdam</strong> (Netherlands) anchors Europe's ARA refinery cluster with ~19 million cubic meters of storage and sets Brent-related price benchmarks for Atlantic Basin trade. <strong>Fujairah</strong> (UAE) is the only major terminal outside the Strait of Hormuz, holding ~42 million barrels and exporting over 1.7 million barrels per day — roughly 1.7% of all global daily oil demand — making it a strategic bypass route for Middle East exports. <strong>Singapore</strong> is Asia's undisputed oil hub, the world's largest bunkering port, processing over 1.5 million barrels per day through Jurong Island. Together, these four locations physically underpin the WTI, Brent, and Asian benchmark pricing chains. Monitoring their radar signal provides a daily, independent window into global supply and demand balance — with no reliance on self-reported industry data.
+  </div>
+
+  <div class="hub-grid">
+    <div class="hub-card">
+      <div class="hub-name">Cushing, USA</div>
+      <div class="hub-cap">91M bbl</div>
+      <div class="hub-unit">storage capacity</div>
+      <div class="hub-role">WTI futures delivery point since 1983. "Pipeline Crossroads of the World."</div>
+      <span class="hub-badge hub-badge-blue">WTI benchmark</span>
+    </div>
+    <div class="hub-card">
+      <div class="hub-name">Rotterdam, Netherlands</div>
+      <div class="hub-cap">120M bbl</div>
+      <div class="hub-unit">Europe's largest port</div>
+      <div class="hub-role">ARA hub anchors Brent pricing for Atlantic Basin crude imports.</div>
+      <span class="hub-badge hub-badge-green">Brent / ARA hub</span>
+    </div>
+    <div class="hub-card">
+      <div class="hub-name">Fujairah, UAE</div>
+      <div class="hub-cap">42M bbl</div>
+      <div class="hub-unit">outside Strait of Hormuz</div>
+      <div class="hub-role">Only major terminal bypassing Hormuz. Exports ~1.7M bbl/day.</div>
+      <span class="hub-badge hub-badge-amber">Hormuz bypass</span>
+    </div>
+    <div class="hub-card">
+      <div class="hub-name">Singapore</div>
+      <div class="hub-cap">94M bbl</div>
+      <div class="hub-unit">Asia's #1 hub</div>
+      <div class="hub-role">World's largest bunkering port. Processes 1.5M bbl/day.</div>
+      <span class="hub-badge hub-badge-purple">Asian benchmark</span>
+    </div>
+  </div>
+
+  <div id="error-banner" style="display:none" class="banner-error"></div>
+
+  <div class="section-label">Latest snapshot</div>
   <div class="metric-grid">
-    <div class="metric">
-      <div class="metric-label">Skills</div>
-      <div class="metric-value">20</div>
-      <div class="metric-sub">across 7 categories</div>
+    <div class="metric"><div class="metric-label">Observation date</div><div class="metric-value" id="m-date">—</div><div class="metric-sub">most recent run</div></div>
+    <div class="metric"><div class="metric-label">Tanks sampled</div><div class="metric-value" id="m-tanks">—</div><div class="metric-sub">of 13 active</div></div>
+    <div class="metric"><div class="metric-label">Regions covered</div><div class="metric-value" id="m-regions">—</div><div class="metric-sub">all 4 hubs</div></div>
+    <div class="metric"><div class="metric-label">Anomalies flagged</div><div class="metric-value" id="m-anom">—</div><div class="metric-sub">|z-score| &gt; 2.0</div></div>
+  </div>
+
+  <div id="stale-banner" style="display:none" class="banner-stale"></div>
+
+  <!-- Interactive dB ↔ Fill % Explainer -->
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">How radar signal (dB) maps to fill estimate (%)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start" id="db-explainer-grid">
+      <!-- Left: interactive slider + tank visual -->
+      <div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Drag the slider to see how different radar return strengths translate into estimated fill levels.</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <label style="font-size:12px;font-weight:600;color:var(--text3);min-width:70px">dB value</label>
+          <input type="range" id="db-slider" min="-32" max="-5" step="0.5" value="-15" style="flex:1;accent-color:var(--accent)">
+          <span id="db-slider-val" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500;min-width:60px;text-align:right">−15.0 dB</span>
+        </div>
+        <!-- Tank SVG visualization -->
+        <div style="display:flex;align-items:end;gap:24px;justify-content:center;padding:12px 0">
+          <svg viewBox="0 0 120 180" width="120" height="180" style="flex-shrink:0">
+            <!-- Tank outline -->
+            <rect x="10" y="20" width="100" height="140" rx="8" ry="8" fill="none" stroke="var(--border2)" stroke-width="2"/>
+            <!-- Fill level (animated) -->
+            <clipPath id="tank-clip"><rect x="12" y="22" width="96" height="136" rx="6" ry="6"/></clipPath>
+            <rect id="tank-fill-rect" x="12" width="96" rx="6" ry="6" clip-path="url(#tank-clip)" style="transition:all 0.3s ease"/>
+            <!-- Radar waves (top) -->
+            <g id="radar-waves" style="transition:opacity 0.3s">
+              <path d="M60 8 Q50 0 40 8" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.4"/>
+              <path d="M70 12 Q60 2 50 12" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.6"/>
+              <path d="M75 16 Q60 4 45 16" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.8"/>
+            </g>
+            <!-- Labels -->
+            <text x="60" y="174" text-anchor="middle" fill="var(--text3)" font-size="10" font-family="Inter,sans-serif">tank cross-section</text>
+          </svg>
+          <div style="text-align:center">
+            <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Estimated fill</div>
+            <div id="db-fill-pct" style="font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:600;letter-spacing:-1px;transition:color 0.3s">63%</div>
+            <div id="db-fill-label" style="font-size:12px;margin-top:4px;font-weight:500;transition:color 0.3s">near baseline</div>
+            <div id="db-fill-bar" style="width:120px;height:6px;border-radius:3px;background:var(--bg3);margin:10px auto 0;overflow:hidden">
+              <div id="db-fill-bar-inner" style="height:100%;border-radius:3px;transition:all 0.3s ease"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Right: explanation panel -->
+      <div>
+        <div style="font-size:12.5px;line-height:1.8;color:var(--text2)" id="db-explain-text"></div>
+        <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+          <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Reference scale</div>
+          <div style="display:flex;align-items:center;gap:0;height:18px;border-radius:4px;overflow:hidden;margin-bottom:6px">
+            <div style="flex:1;background:linear-gradient(90deg,#cc2222 0%,#cc2222 40%);height:100%"></div>
+            <div style="flex:0.7;background:linear-gradient(90deg,#cc2222,#c47a00);height:100%"></div>
+            <div style="flex:0.7;background:linear-gradient(90deg,#c47a00,#3a7a00);height:100%"></div>
+            <div style="flex:1;background:linear-gradient(90deg,#3a7a00 0%,#3a7a00 100%);height:100%"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace">
+            <span>−32 dB</span><span>−21 dB</span><span>−16 dB</span><span>−5 dB</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:2px">
+            <span>empty (0%)</span><span>low (40%)</span><span>mid (60%)</span><span>full (100%)</span>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-size:11.5px;color:var(--text3);line-height:1.7">
+          <strong style="color:var(--text2)">Key insight:</strong> The relationship is <em>relative</em>, not absolute. A single dB reading means little on its own — the fill estimate compares each tank against its own historical baseline. The linear mapping shown here (−32 to −5 dB → 0 to 100%) is an approximation used before enough baseline data accumulates.
+        </div>
+      </div>
     </div>
-    <div class="metric">
-      <div class="metric-label">Memory Tiers</div>
-      <div class="metric-value">4</div>
-      <div class="metric-sub">episodic · semantic · procedural · working</div>
+  </div>
+  <style>
+    @media(max-width:700px) { #db-explainer-grid { grid-template-columns: 1fr !important; } }
+  </style>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:.75rem">
+      <span class="card-title" style="margin-bottom:0">Oil price vs. average tank signal</span>
+      <span id="corr-label" style="font-size:11.5px;color:var(--text3)"></span>
+      <div style="margin-left:auto">
+        <div class="unit-toggle">
+          <button class="unit-btn active" id="btn-corr-ts" onclick="setCorrView('ts')">time series</button>
+          <button class="unit-btn" id="btn-corr-sc" onclick="setCorrView('scatter')">scatter</button>
+        </div>
+      </div>
     </div>
-    <div class="metric">
-      <div class="metric-label">Persona Dimensions</div>
-      <div class="metric-value">64</div>
-      <div class="metric-sub">Bayesian posterior, Kalman-updated</div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:.75rem;font-size:11.5px;color:var(--text3)">
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:20px;height:2px;background:#c47a00;display:inline-block;border-radius:2px"></span>WTI crude (USD/bbl)</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#0066CC;display:inline-block"></span>Avg dB</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#0d9e75;display:inline-block"></span>Avg fill est.%</span>
     </div>
-    <div class="metric">
-      <div class="metric-label">Tests Passing</div>
-      <div class="metric-value">256</div>
-      <div class="metric-sub">incl. 16 causal leakage tests</div>
+    <div class="chart-wrap-tall"><canvas id="corrChart"></canvas></div>
+    <div class="note">
+      <strong>What this shows:</strong> WTI crude oil spot price (EIA public data, no weekends/holidays — typically 2–3 business day publication lag) plotted against the daily average radar signal across all 13 monitored tanks. <strong>Time series</strong> view uses dual y-axes: left = USD/bbl, right = dB. <strong>Scatter</strong> view plots price on x-axis vs. fill % on y-axis to reveal correlation directly. The Pearson coefficient (r) quantifies linear relationship: &plusmn;1 = perfect, 0 = none. A negative r between price and fill % would confirm the economic hypothesis that rising prices coincide with inventory draws. This analysis becomes more meaningful as observation days accumulate.
     </div>
   </div>
 
-  <div class="section-label">Pipeline results</div>
-  <div class="metric-grid">
-    <div class="metric">
-      <div class="metric-label">Regime Accuracy</div>
-      <div class="metric-value">65.4%</div>
-      <div class="metric-sub">vs 52.9% majority baseline</div>
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">Today's signal summary</div>
+    <div id="daily-summary" style="font-size:13px;line-height:1.8;color:var(--text2)">Loading…</div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">VV backscatter range by region — current day</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:.75rem">Full spread from minimum to maximum radar return across each hub. Bar shows the range; dot marks the mean. Wider bar = more variation between tanks.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:.5rem;font-size:11.5px;color:var(--text3)">
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:22px;height:8px;border-radius:2px;background:rgba(196,122,0,0.2);border:1px solid #c47a00;display:inline-block"></span>VV range (min → max)</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#c47a00;display:inline-block"></span>Mean VV</span>
     </div>
-    <div class="metric">
-      <div class="metric-label">EIA Direction</div>
-      <div class="metric-value">52.8%</div>
-      <div class="metric-sub">Stage 1 Kalman vs EIA</div>
+    <div class="chart-wrap"><canvas id="regionChart"></canvas></div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">Region average signal</div>
+    <div class="col-head" style="gap:8px">
+      <span class="ch" style="width:80px">region</span>
+      <span class="ch" style="flex:1">signal</span>
+      <span class="ch" style="width:60px;text-align:right">dB</span>
+      <span class="ch" style="width:44px;text-align:right">est.%</span>
+      <span class="ch" style="width:50px;text-align:right">images</span>
     </div>
-    <div class="metric">
-      <div class="metric-label">Global Hubs</div>
-      <div class="metric-value">4</div>
-      <div class="metric-sub">Cushing · Rotterdam · Fujairah · Singapore</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Tanks Monitored</div>
-      <div class="metric-value">13</div>
-      <div class="metric-sub">floating-roof, Sentinel-1 SAR</div>
+    <div id="region-list"><div style="font-size:12px;color:var(--text3)">Loading...</div></div>
+    <div class="refresh">Updates daily at 02:00 UTC</div>
+    <div class="note">
+      <strong>How to read this table:</strong> Each row summarises the average radar return across all tanks in that hub. The <strong>dB</strong> value is the mean VV backscatter strength &mdash; a less negative number (e.g. &minus;8 dB) means stronger radar return, typically indicating smoother, fuller tank surfaces. The <strong>est.%</strong> maps this signal onto a 0&ndash;100% scale relative to the expected range (&minus;32 to &minus;5 dB). The <strong>images</strong> column shows how many Sentinel-1 satellite passes were captured in the 7-day window &mdash; more images means a more reliable average. Once 3+ days of history accumulate, est.% will switch from signal-range approximation to a baseline-calibrated fill proxy that compares each hub against its own history.
     </div>
   </div>
 
-  <div class="section-label">Benchmark results (live from data/)</div>
-  <div class="metric-grid">
-    <div class="metric">
-      <div class="metric-label">Persona Divergence</div>
-      <div class="metric-value" id="idx-persona">—</div>
-      <div class="metric-sub" id="idx-persona-ci"></div>
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">Per-tank radar signal</div>
+    <div class="obs-date" id="tank-date">Loading...</div>
+    <div class="col-head">
+      <span class="ch" style="width:76px">tank</span>
+      <span class="ch" style="width:68px">region</span>
+      <span class="ch" style="flex:1">signal</span>
+      <span class="ch" style="width:60px;text-align:right">dB</span>
+      <span class="ch" style="width:44px;text-align:right">est.%</span>
     </div>
-    <div class="metric">
-      <div class="metric-label">Skill Pass Rate</div>
-      <div class="metric-value" id="idx-skill">—</div>
-      <div class="metric-sub" id="idx-skill-ci"></div>
+    <div id="tank-list"></div>
+    <div class="banner-warn" id="building-note" style="display:none">
+      <strong>What does "building" mean?</strong> Each tank needs at least 3 observation days before the system can calculate its personal fill estimate. Think of it like a fitness tracker that needs a week of readings before it can tell you if today's heart rate is "high for you." Right now we are collecting baseline data — the fill % estimate will appear automatically once enough days have accumulated.
     </div>
-    <div class="metric">
-      <div class="metric-label">Memory Utility</div>
-      <div class="metric-value" id="idx-mem">—</div>
-      <div class="metric-sub" id="idx-mem-ci"></div>
+    <div class="note">
+      <strong>How to read the bars:</strong> The satellite sends radar pulses at the tank and measures how much bounces back. A <strong>fuller tank</strong> has smooth oil on its surface — like a calm pond — which reflects radar strongly back to the satellite. An <strong>emptier tank</strong> has exposed metal walls and internal equipment that scatter the radar in all directions, so less bounces back. The dB number is the raw radar strength (more negative = weaker return). The estimated % translates this into an approximate fill level relative to each tank's own history — not an absolute volume measurement.
     </div>
-    <div class="metric">
-      <div class="metric-label">OOS Dir. Accuracy</div>
-      <div class="metric-value" id="idx-oos">—</div>
-      <div class="metric-sub" id="idx-oos-ci"></div>
+    <div style="margin-top:.85rem;padding-top:.75rem;border-top:1px solid var(--border)">
+      <div style="font-size:10.5px;color:var(--text3);margin-bottom:.65rem">* relative % from signal range — calibrated fill % appears after 3+ days</div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;flex-shrink:0">Badge guide</div>
+        <div class="legend-item" style="margin-bottom:0"><div class="legend-sw" style="background:#3a7a00"></div>Above-average fill (est. &gt;60%)</div>
+        <div class="legend-item" style="margin-bottom:0"><div class="legend-sw" style="background:#c47a00"></div>Near baseline fill (40–60%)</div>
+        <div class="legend-item" style="margin-bottom:0"><div class="legend-sw" style="background:#cc2222"></div>Below-average fill (est. &lt;40%)</div>
+      </div>
     </div>
   </div>
 
-  <h2>What is OTM-Agent?</h2>
-  <p>Commodity analysts integrate satellite imagery, market microstructure data, and econometric models to form views on global oil storage. This workflow demands expertise spanning remote sensing, time-series analysis, and energy trading — a combination rarely found in a single practitioner.</p>
-  <p>OTM-Agent addresses this by wrapping an operational three-stage pipeline — Sentinel-1 SAR processing, feature engineering with market data, and signal generation — with an LLM-based planner that selects which pipeline components to run and in what order, a persistent memory system that maintains context across sessions, and a persona model that adapts behavior to individual analysts.</p>
-  <p>The LLM serves as a <strong>planner, not a predictor</strong>. The statistical models in Stages 1–3 handle prediction; the LLM decides what to run, when, and how to interpret the results in context.</p>
-
-  <h2>Architecture Overview</h2>
-  <div class="diagram">┌──────────────────────────────────────────────────────┐
-│                      OTM-Agent                        │
-│                                                       │
-│   ┌──────────┐    ┌──────────┐    ┌───────────────┐   │
-│   │ Planner  │ →  │ Executor │ →  │ Reward / Eval │   │
-│   │ (LLM)    │    │ (Skills) │    │ (Multi-obj.)  │   │
-│   └────┬─────┘    └──────────┘    └───────────────┘   │
-│        │               ↑                              │
-│   ┌────▼─────┐    ┌────┴─────┐                        │
-│   │ Memory   │    │ Persona  │                        │
-│   │ (4-tier) │    │ (64-d)   │                        │
-│   └──────────┘    └──────────┘                        │
-│                                                       │
-└───────────────────────────────────────────────────────┘
-          ↕                        ↕
-   ┌──────────────┐    ┌──────────────────┐
-   │  Stages 1–3  │    │  External APIs   │
-   │  Pipeline    │    │  (BQ, Cloud Run) │
-   └──────────────┘    └──────────────────┘</div>
-  <p>See the full <a href="architecture.html">Architecture</a> page for details on each component.</p>
-
-  <h2>Key Contributions</h2>
-  <div class="card">
-    <div class="card-title">Typed Skill Library</div>
-    <p style="margin-bottom:0">20 skills with declared preconditions, side effects, failure modes, and retention probes. The skill registry validates plans against a dependency DAG before execution.</p>
-  </div>
-  <div class="card">
-    <div class="card-title">OOS Holdout Enforcement via Static Analysis</div>
-    <p style="margin-bottom:0">All training data restricted to dates before May 1, 2025. A pytest-based CI gate uses AST parsing to scan all training queries for the holdout filter. An audit identified 20+ queries lacking the filter — all corrected before any model training.</p>
-  </div>
-  <div class="card">
-    <div class="card-title">Causal Leakage Prevention</div>
-    <p style="margin-bottom:0">A <code>query_ts</code> parameter threaded through all 8 memory retrieval paths prevents the agent from accessing future information during OOS replay. Enforced by 16 dedicated tests.</p>
-  </div>
-  <div class="card">
-    <div class="card-title">Multi-Objective Reward</div>
-    <p style="margin-bottom:0"><code>R = R_directional + α·R_task + β·R_memory + γ·R_consistency + δ·R_retention − λ·C_cost</code>. Directional alignment with price movement provides the environment-grounded signal; auxiliary components capture task quality, memory utility, and knowledge retention.</p>
+  <div class="trend-panel">
+    <div class="card">
+      <div class="trend-header">
+        <span class="trend-title">Daily trend</span>
+        <span style="color:var(--text3);font-size:13px">—</span>
+        <span class="selected-tank" id="selected-label">select a tank above to see its history</span>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+          <select class="days-select" id="days-select">
+            <option value="14">14 days</option>
+            <option value="30" selected>30 days</option>
+            <option value="60">60 days</option>
+            <option value="90">90 days</option>
+          </select>
+          <div class="unit-toggle">
+            <button class="unit-btn active" id="btn-pct" onclick="setUnit('pct')">fill %</button>
+            <button class="unit-btn" id="btn-db" onclick="setUnit('db')">dB</button>
+            <button class="unit-btn" id="btn-both" onclick="setUnit('both')">both</button>
+          </div>
+        </div>
+      </div>
+      <div class="chart-wrap-tall"><canvas id="trendChart"></canvas></div>
+      <div class="note" style="margin-top:.75rem">
+        <strong>Fill % (left axis):</strong> estimated fill level relative to the tank's own baseline — above 50% means above-average fill compared to recent history. <strong>dB (right axis):</strong> raw radar backscatter strength — stronger return (less negative) generally means smoother, fuller surface. Both signals update daily after the satellite overpass is processed.
+      </div>
+    </div>
   </div>
 
-  <h2>Recent Updates</h2>
-  <div class="changelog-entry">
-    <div class="changelog-date">2026-05-21</div>
-    <div class="changelog-title">v0.1 — Public site launched</div>
-    <div class="changelog-body">Site scaffolded with architecture, methods, benchmarks, audit, and live dashboard pages. Deploy pipeline live on GitHub Pages.</div>
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-title">Pipeline Health</div>
+    <div id="pipeline-health" style="font-size:13px;color:var(--text2);line-height:1.8">Checking...</div>
+    <div class="note" style="margin-top:.75rem">
+      <strong>How this works:</strong> The watchdog checks the API observation date on every page load. If data is older than 3 days, it flags a warning. If older than 7 days, it flags critical. Cloud Schedulers run the pipeline daily at 02:00–04:00 UTC. If all three stages (ingest → signals → runner) succeed, the dashboard updates within minutes. The <a href="https://github.com/oguzhan-canada/otm-agent-site/actions/workflows/watchdog.yml" target="_blank" style="color:var(--accent)">GitHub Actions watchdog</a> runs daily at 14:00 UTC as a safety net — it auto-triggers recovery and opens an issue if data stays stale.
+    </div>
   </div>
 
-  <h2>Links</h2>
-  <p>
-    <a href="https://github.com/oguzhan-canada/otm-agent-site">GitHub Repository</a> ·
-    <a href="architecture.html">Architecture</a> ·
-    <a href="methods.html">Methods</a> ·
-    <a href="benchmarks.html">Benchmarks</a> ·
-    <a href="dashboard.html">Live Dashboard</a>
-  </p>
+  <footer>
+    <span>GCP: oil-tank-monitoring-123 · Sentinel-1 GRD IW VV via Google Earth Engine · Daily 02:00 UTC</span>
+    <span id="data-note"></span>
+  </footer>
 
 </div>
-
-<footer>
-  <span>OTM-Agent · GCP: oil-tank-monitoring-123 · Sentinel-1 GRD IW VV</span>
-  <span>Last updated: 2026-05-21</span>
-</footer>
-
 <script>
-function toggleTheme() {
-  const html = document.documentElement;
-  const current = html.getAttribute('data-theme');
-  html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
-  localStorage.setItem('theme', html.getAttribute('data-theme'));
-}
-(function() {
-  const saved = localStorage.getItem('theme');
-  if (saved) document.documentElement.setAttribute('data-theme', saved);
-})();
+// ── API Configuration & Guardrails ──────────────────────────
+const API_URLS = [
+  "https://otm-api-dev-zdqsboxooa-nn.a.run.app",            // canonical Cloud Run URL
+  "https://otm-api-dev-481921676964.northamerica-northeast1.run.app" // legacy project-number URL
+];
+let API_BASE = API_URLS[0];
+const REF_MIN = -32, REF_MAX = -5;
+const RCOL = {cushing:'#0066CC', rotterdam:'#0d9e75', fujairah:'#c47a00', singapore:'#7755cc'};
+let currentUnit = 'pct';
+let selectedTank = null;
+let historyData = {};
+let trendChartObj = null;
+let regionChartObj = null;
+let snapshotData = null;
+let consecutiveFailures = 0;
+let wtiPriceCache = {};  // date→price cache for trend overlay
+const MAX_RETRIES = 2;
+const FETCH_TIMEOUT_MS = 12000;
+const STALE_WARN_DAYS = 2;
+const STALE_CRIT_DAYS = 7;
+const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const POLL_BACKOFF_MS  = 15 * 60 * 1000; // 15 min after repeated failures
 
-async function loadMetrics() {
-  const items = [
-    { file: 'data/otm_persona_align.json', id: 'idx-persona', ci: 'idx-persona-ci', pct: false },
-    { file: 'data/otm_skill_retention.json', id: 'idx-skill', ci: 'idx-skill-ci', pct: true },
-    { file: 'data/otm_mem_utility.json', id: 'idx-mem', ci: 'idx-mem-ci', pct: false },
-    { file: 'data/otm_oos_replay.json', id: 'idx-oos', ci: 'idx-oos-ci', pct: true },
-  ];
-  for (const it of items) {
+// Fetch with timeout + automatic failover to backup URL
+async function apiFetch(path, opts = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const urls = [API_BASE, ...API_URLS.filter(u => u !== API_BASE)];
+  let lastErr;
+  for (const base of urls) {
     try {
-      const r = await fetch(it.file);
-      if (!r.ok) continue;
-      const d = await r.json();
-      const p = d.metrics.primary;
-      const el = document.getElementById(it.id);
-      const ciEl = document.getElementById(it.ci);
-      if (el) el.textContent = it.pct ? (p.value*100).toFixed(1)+'%' : p.value.toFixed(3);
-      if (ciEl) ciEl.textContent = it.pct
-        ? `CI: [${(p.ci_low*100).toFixed(1)}%, ${(p.ci_high*100).toFixed(1)}%]`
-        : `CI: [${p.ci_low.toFixed(3)}, ${p.ci_high.toFixed(3)}]`;
-    } catch(e) {}
+      const resp = await fetch(`${base}${path}`, { ...opts, signal: controller.signal });
+      clearTimeout(timeout);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      API_BASE = base; // stick with whichever URL worked
+      consecutiveFailures = 0;
+      return resp;
+    } catch (e) {
+      lastErr = e;
+      if (e.name === 'AbortError') { lastErr = new Error('Request timed out after ' + (FETCH_TIMEOUT_MS/1000) + 's'); break; }
+    }
+  }
+  clearTimeout(timeout);
+  consecutiveFailures++;
+  throw lastErr;
+}
+
+function showBanner(id, msg, level) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = 'block';
+  el.className = level === 'error' ? 'banner-error' : level === 'warn' ? 'banner-stale' : 'banner-stale';
+  el.innerHTML = msg;
+}
+
+function dedupBy(arr, key) {
+  const seen = new Set();
+  return (arr || []).filter(item => {
+    if (seen.has(item[key])) return false;
+    seen.add(item[key]);
+    return true;
+  });
+}
+function vvToPct(vv) {
+  if (vv === null || vv === undefined) return 0;
+  return Math.max(3, Math.min(100, ((vv - REF_MIN) / (REF_MAX - REF_MIN)) * 100));
+}
+function barColor(cur) {
+  if (!cur) return '#c47a00';
+  if (cur.fill_proxy === null) return '#c47a00';
+  return cur.fill_proxy > 0.6 ? '#3a7a00' : cur.fill_proxy < 0.4 ? '#cc2222' : '#c47a00';
+}
+function badgeHtml(cur) {
+  if (!cur) return '<span class="badge badge-ins">building</span>';
+  if (cur.fill_proxy !== null && cur.is_anomaly) return `<span class="badge badge-anom">${Math.round(cur.fill_proxy*100)}% ⚠</span>`;
+  if (cur.fill_proxy !== null) return `<span class="badge badge-ok">${Math.round(cur.fill_proxy*100)}%</span>`;
+  return '<span class="badge badge-ins">building</span>';
+}
+function estPct(t, cur) {
+  if (cur && cur.fill_proxy !== null) return Math.round(cur.fill_proxy * 100) + '%';
+  if (t.mean_vv === null) return '—';
+  return Math.round(vvToPct(t.mean_vv)) + '%*';
+}
+function pctColor(cur) { return 'var(--text)'; }
+
+function renderSummary(obsDate, tanks, curated, regions) {
+  const el = document.getElementById('daily-summary');
+  if (!obsDate || tanks.length === 0) { el.textContent = 'No data available yet.'; return; }
+  const ageDays = Math.floor((Date.now() - new Date(obsDate + 'T00:00:00Z')) / 86400000);
+  const dateLabel = ageDays === 0 ? 'today' : ageDays === 1 ? 'yesterday' : `${ageDays} days ago`;
+  const regionNames = { cushing: 'Cushing', rotterdam: 'Rotterdam', fujairah: 'Fujairah', singapore: 'Singapore' };
+  const regionSummaries = regions.map(r => {
+    const label = regionNames[r.region_code] || r.region_code;
+    const spread = r.max_vv !== null && r.min_vv !== null ? (r.max_vv - r.min_vv).toFixed(1) : '?';
+    return `${label} (mean ${r.mean_vv !== null ? r.mean_vv.toFixed(1) : '?'} dB, range ${spread} dB)`;
+  });
+  const validRegions = regions.filter(r => r.mean_vv !== null);
+  const strongest = validRegions.length ? validRegions.reduce((a, b) => a.mean_vv > b.mean_vv ? a : b) : null;
+  const weakest   = validRegions.length ? validRegions.reduce((a, b) => a.mean_vv < b.mean_vv ? a : b) : null;
+  const hasProxy   = curated.some(c => c.fill_proxy !== null);
+  const anomalies  = curated.filter(c => c.is_anomaly);
+  const building   = curated.filter(c => c.fill_proxy === null && c.status === 'INSUFFICIENT_HISTORY');
+  const okTanks    = curated.filter(c => c.status === 'OK');
+  const highFill   = okTanks.filter(c => c.fill_proxy > 0.6);
+  const lowFill    = okTanks.filter(c => c.fill_proxy < 0.4);
+  const parts = [];
+  parts.push(`<strong>Observation ${dateLabel} (${obsDate}).</strong> Sentinel-1 sampled ${tanks.length} tanks across ${regions.length} hubs.`);
+  if (regionSummaries.length) parts.push(`Regional radar returns: ${regionSummaries.join('; ')}.`);
+  if (strongest && weakest && strongest.region_code !== weakest.region_code) {
+    parts.push(`<strong>${regionNames[strongest.region_code] || strongest.region_code}</strong> recorded the strongest mean backscatter (${strongest.mean_vv.toFixed(1)} dB), suggesting relatively fuller or smoother surfaces. <strong>${regionNames[weakest.region_code] || weakest.region_code}</strong> was weakest (${weakest.mean_vv.toFixed(1)} dB).`);
+  }
+  if (!hasProxy) {
+    parts.push(`Fill-proxy estimates are still <strong>building baseline</strong> — all ${building.length} tanks need at least 3 days of observations before relative fill estimates are available. Raw dB values are shown as approximate % in the table.`);
+  } else {
+    if (highFill.length) parts.push(`${highFill.length} tank${highFill.length > 1 ? 's' : ''} showing <strong>above-average fill</strong> (&gt;60%): ${highFill.map(c => c.tank_id).join(', ')}.`);
+    if (lowFill.length)  parts.push(`${lowFill.length} tank${lowFill.length > 1 ? 's' : ''} showing <strong>below-average fill</strong> (&lt;40%): ${lowFill.map(c => c.tank_id).join(', ')}.`);
+    if (anomalies.length) parts.push(`⚠ <strong>${anomalies.length} anomal${anomalies.length > 1 ? 'ies' : 'y'} detected</strong> (|z-score| &gt; 2.0): ${anomalies.map(c => c.tank_id).join(', ')} — unusually large change vs. baseline.`);
+    else parts.push('No anomalies detected — all signals within normal range.');
+  }
+  if (ageDays > 2) parts.push(`<em style="color:var(--text3)">Note: pipeline may not have run since ${obsDate} — check Cloud Run scheduler.</em>`);
+  el.innerHTML = parts.join(' ');
+}
+
+function renderSnapshot(data) {
+  snapshotData = data;
+  const tanks   = dedupBy(data.tank_features,  'tank_id');
+  const curated = dedupBy(data.curated,         'tank_id');
+  const regions = dedupBy(data.region_features, 'region_code');
+  const rSignal = dedupBy(data.region_signal,   'region_code');
+  document.getElementById('m-date').textContent = data.obs_date || '—';
+  document.getElementById('m-tanks').textContent = tanks.filter(t => t.status === 'OK').length;
+  document.getElementById('m-regions').textContent = new Set(tanks.map(t => t.region_code)).size;
+  document.getElementById('m-anom').textContent = curated.filter(c => c.is_anomaly).length;
+  document.getElementById('tank-date').textContent = 'Observation date: ' + (data.obs_date || '—');
+  renderSummary(data.obs_date, tanks, curated, regions);
+  const hasProxy = curated.some(c => c.fill_proxy !== null);
+  const hasBuilding = curated.some(c => c.fill_proxy === null);
+  document.getElementById('building-note').style.display = hasBuilding ? 'block' : 'none';
+  const tankList = document.getElementById('tank-list');
+  tankList.innerHTML = tanks.map(t => {
+    const cur = curated.find(c => c.tank_id === t.tank_id);
+    const pct = vvToPct(t.mean_vv);
+    const dbLabel = t.mean_vv !== null ? t.mean_vv.toFixed(1) + ' dB' : '—';
+    return `<div class="tank-row" onclick="selectTank('${t.tank_id}')" id="row-${t.tank_id}" role="button" tabindex="0" aria-label="Select tank ${t.tank_id}">
+      <span class="tank-id">${t.tank_id}</span>
+      <span class="tank-region">${t.region_code}</span>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${pct.toFixed(1)}%;background:${barColor(cur)}"></div></div>
+      <span class="tank-db">${dbLabel}</span>
+      <span class="tank-pct">${estPct(t, cur)}</span>
+    </div>`;
+  }).join('');
+
+  const regionList = document.getElementById('region-list');
+  const showSignal = rSignal.length > 0;
+  const rows = showSignal ? rSignal : regions;
+  regionList.innerHTML = rows.map(r => {
+    const code = r.region_code;
+    const meanVv = showSignal ? null : r.mean_vv;
+    const fillProxy = showSignal ? r.avg_fill_proxy : null;
+    const dbLabel = meanVv !== null ? meanVv.toFixed(1) : (r.mean_vv !== null && r.mean_vv !== undefined ? r.mean_vv.toFixed(1) : '\u2014');
+    const estLabel = fillProxy !== null ? Math.round(fillProxy * 100) + '%' : (meanVv !== null ? Math.round(vvToPct(meanVv)) + '%*' : '\u2014');
+    const pct = fillProxy !== null ? Math.max(4, Math.round(fillProxy * 100)) : (meanVv !== null ? vvToPct(meanVv).toFixed(1) : 0);
+    const pctNum = parseFloat(pct);
+    const gaugeColor = pctNum > 60 ? '#3a7a00' : pctNum < 40 ? '#cc2222' : '#c47a00';
+    const imgCount = r.image_count || (showSignal ? '' : '?');
+    return `<div class="region-row">
+      <span class="region-name">${code}</span>
+      <div class="gauge-wrap"><div class="gauge-fill" style="width:${pct}%;background:${gaugeColor}"></div></div>
+      <span class="region-val">${dbLabel} dB</span>
+      <span class="region-pct">${estLabel}</span>
+      <span class="region-imgs">${imgCount ? imgCount + ' imgs' : '\u2014'}</span>
+    </div>`;
+  }).join('') + (!showSignal ? `<div style="font-size:10.5px;color:var(--text3);margin-top:.65rem">Fill % appears from day 3 \u2014 showing radar signal for now</div>` : '');
+
+  if (regionChartObj) regionChartObj.destroy();
+  regionChartObj = new Chart(document.getElementById('regionChart'), {
+    type: 'bar',
+    data: {
+      labels: regions.map(r => r.region_code),
+      datasets: [
+        { label: 'VV range (min → max)', data: regions.map(r => [r.min_vv, r.max_vv]), backgroundColor: 'rgba(196,122,0,0.18)', borderColor: '#c47a00', borderWidth: 1, borderSkipped: false },
+        { label: 'Mean VV', type: 'scatter', data: regions.map((r, i) => ({ x: i, y: r.mean_vv })), backgroundColor: '#c47a00', borderColor: '#fff', borderWidth: 1.5, pointRadius: 5, pointHoverRadius: 7 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => { if (ctx.dataset.type === 'scatter') return `Mean: ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) : '?'} dB`; const [lo, hi] = ctx.raw; if (lo === null || hi === null) return 'No data'; return `Range: ${lo.toFixed(1)} → ${hi.toFixed(1)} dB`; } } } },
+      scales: { x: { ticks: { font: { size: 14, family: 'Inter', weight: '600' } }, grid: { display: false } }, y: { ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { color: 'rgba(128,128,128,0.08)' } } }
+    }
+  });
+}
+
+function setUnit(unit) {
+  currentUnit = unit;
+  ['pct','db','both'].forEach(u => document.getElementById('btn-' + u).classList.toggle('active', u === unit));
+  if (selectedTank) drawTrend(selectedTank);
+}
+function selectTank(tankId) {
+  document.querySelectorAll('.tank-row').forEach(r => r.classList.remove('active'));
+  const row = document.getElementById('row-' + tankId);
+  if (row) row.classList.add('active');
+  selectedTank = tankId;
+  document.getElementById('selected-label').textContent = tankId;
+  drawTrend(tankId);
+}
+function drawTrend(tankId) {
+  const days = parseInt(document.getElementById('days-select').value);
+  const history = historyData[tankId];
+  if (!history || history.length === 0) { document.getElementById('selected-label').textContent = tankId + ' — no history yet'; return; }
+  const hasAnyProxy = history.some(h => h.fill_proxy !== null);
+  let effectiveUnit = currentUnit;
+  if (!hasAnyProxy && currentUnit === 'pct') effectiveUnit = 'db';
+
+  // Build SAR data points
+  const dataPoints = history
+    .filter(h => h.obs_date)
+    .sort((a, b) => a.obs_date.localeCompare(b.obs_date))
+    .map(h => ({
+      x: h.obs_date,
+      db: h.mean_vv !== null ? parseFloat(h.mean_vv.toFixed(2)) : null,
+      pct: h.fill_proxy !== null ? Math.round(h.fill_proxy * 100) : (h.mean_vv !== null ? Math.round(vvToPct(h.mean_vv)) : null),
+    }));
+
+  // Build WTI price data points for the same date range
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  const pricePoints = Object.keys(wtiPriceCache)
+    .filter(d => d >= cutoff)
+    .sort()
+    .map(d => ({ x: d, y: wtiPriceCache[d] }));
+
+  const datasets = [];
+
+  // WTI price line (always shown, rendered first so it's behind)
+  if (pricePoints.length > 0) {
+    datasets.push({
+      label: 'WTI crude (USD/bbl)',
+      data: pricePoints,
+      borderColor: '#c47a00', backgroundColor: 'rgba(196,122,0,0.04)',
+      tension: 0.3, pointRadius: 1, pointHoverRadius: 4, borderWidth: 1.5,
+      fill: true, yAxisID: 'yPrice', spanGaps: true, order: 2
+    });
+  }
+
+  if (effectiveUnit === 'db' || effectiveUnit === 'both') {
+    datasets.push({
+      label: 'Mean VV (dB)',
+      data: dataPoints.map(p => ({ x: p.x, y: p.db })),
+      borderColor: '#0066CC', backgroundColor: 'rgba(0,102,204,0.06)',
+      tension: 0.3, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2,
+      fill: false, yAxisID: effectiveUnit === 'both' ? 'ydb' : 'y', spanGaps: true, order: 1
+    });
+  }
+  if (effectiveUnit === 'pct' || effectiveUnit === 'both') {
+    datasets.push({
+      label: 'Fill estimate (%)',
+      data: dataPoints.map(p => ({ x: p.x, y: p.pct })),
+      borderColor: '#0d9e75', backgroundColor: 'rgba(13,158,117,0.06)',
+      tension: 0.3, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2,
+      fill: false, yAxisID: effectiveUnit === 'both' ? 'ypct' : 'y', spanGaps: true, order: 0
+    });
+  }
+
+  const scales = {};
+  if (effectiveUnit === 'both') {
+    scales.ydb = { type: 'linear', position: 'right', title: { display: true, text: 'dB', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { display: false } };
+    scales.ypct = { type: 'linear', position: 'left', min: 0, max: 100, title: { display: true, text: 'fill %', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(128,128,128,0.08)' } };
+  } else if (effectiveUnit === 'pct') {
+    scales.y = { position: 'left', min: 0, max: 100, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(128,128,128,0.08)' } };
+  } else {
+    scales.y = { position: 'left', ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { color: 'rgba(128,128,128,0.08)' } };
+  }
+  // WTI price axis (right side)
+  if (pricePoints.length > 0) {
+    scales.yPrice = { type: 'linear', position: 'right', title: { display: true, text: 'USD/bbl', font: { size: 10, weight: '500' } }, ticks: { font: { size: 10 }, callback: v => '$' + v }, grid: { display: false } };
+  }
+  // Time-based x-axis so irregular SAR dates are spaced correctly
+  scales.x = {
+    type: 'time',
+    time: { unit: 'day', tooltipFormat: 'yyyy-MM-dd', displayFormats: { day: 'MMM d' } },
+    ticks: { font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 12 },
+    grid: { display: false }
+  };
+
+  if (trendChartObj) trendChartObj.destroy();
+  trendChartObj = new Chart(document.getElementById('trendChart'), {
+    type: 'line', data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'nearest', intersect: false },
+      plugins: {
+        legend: { display: true, labels: { font: { size: 11 }, boxWidth: 10 } },
+        tooltip: { callbacks: {
+          title: (items) => items[0] ? items[0].raw.x : '',
+          label: (ctx) => {
+            const v = ctx.parsed.y;
+            if (v === null) return ctx.dataset.label + ': N/A';
+            if (ctx.dataset.yAxisID === 'yPrice') return `WTI: $${v.toFixed(2)}/bbl`;
+            if (ctx.dataset.label.includes('dB')) return `dB: ${v.toFixed(1)}`;
+            return `Fill: ${v}%`;
+          }
+        }}
+      },
+      scales
+    }
+  });
+}
+document.getElementById('days-select').addEventListener('change', () => { if (selectedTank) loadHistory(parseInt(document.getElementById('days-select').value)); });
+
+async function loadHistory(days) {
+  try {
+    const resp = await apiFetch(`/history?days=${days}`);
+    const data = await resp.json();
+    historyData = data.tank_history || {};
+    if (selectedTank && historyData[selectedTank]) drawTrend(selectedTank);
+  } catch (e) { console.warn('History fetch failed:', e.message); }
+}
+async function loadSnapshot() {
+  const errBanner = document.getElementById('error-banner');
+  const staleBanner = document.getElementById('stale-banner');
+  try {
+    const resp = await apiFetch('/data');
+    const data = await resp.json();
+
+    // Validate response has required fields
+    if (!data || !data.tank_features || !Array.isArray(data.tank_features)) {
+      throw new Error('Invalid API response — missing tank_features');
+    }
+
+    errBanner.style.display = 'none';
+    document.getElementById('data-note').textContent = 'Live · ' + (data.generated_at || '').slice(0, 16) + ' UTC';
+
+    // Stale-data guardrail: classify staleness
+    if (data.obs_date) {
+      const ageDays = Math.floor((Date.now() - new Date(data.obs_date + 'T00:00:00Z')) / 86400000);
+      if (ageDays >= STALE_CRIT_DAYS) {
+        showBanner('stale-banner',
+          `🔴 <strong>Data is ${ageDays} days old</strong> (last observation: ${data.obs_date}). ` +
+          `The SAR pipeline has not produced results in over a week. ` +
+          `<strong>Action needed:</strong> check <a href="https://console.cloud.google.com/run/jobs?project=oil-tank-monitoring-123" target="_blank" style="color:inherit;text-decoration:underline">Cloud Run Jobs</a> for failures, ` +
+          `or trigger manually: <code style="font-size:11px">gcloud run jobs execute job-otm-daily-runner-dev --project=oil-tank-monitoring-123 --region=northamerica-northeast1</code>`,
+          'error');
+      } else if (ageDays > STALE_WARN_DAYS) {
+        showBanner('stale-banner',
+          `⚠ <strong>Data is ${ageDays} day${ageDays !== 1 ? 's' : ''} old</strong> (last observation: ${data.obs_date}). ` +
+          `SAR satellites revisit every 6–12 days — if this exceeds 12 days, the pipeline may need attention.`,
+          'warn');
+      } else {
+        staleBanner.style.display = 'none';
+      }
+    }
+
+    renderSnapshot(data);
+  } catch (e) {
+    // Show actionable error with diagnostics
+    const failMsg = consecutiveFailures > 1
+      ? `API unreachable after ${consecutiveFailures} consecutive attempts. `
+      : `Could not reach API (${e.message}). `;
+    showBanner('error-banner',
+      `🔴 ${failMsg}` +
+      `Showing last known data. ` +
+      `<br><strong>Troubleshooting:</strong> ` +
+      `<a href="${API_URLS[0]}/data" target="_blank" style="color:inherit;text-decoration:underline">Test API directly</a> · ` +
+      `<a href="https://console.cloud.google.com/run/detail/northamerica-northeast1/otm-api-dev/logs?project=oil-tank-monitoring-123" target="_blank" style="color:inherit;text-decoration:underline">View service logs</a>`,
+      'error');
+    document.getElementById('data-note').textContent = 'Offline — showing seed data';
+    renderSnapshot(SEED);
   }
 }
-loadMetrics();
+
+const SEED = {
+  obs_date: "2026-04-12",
+  tank_features: [
+    {tank_id:"cus_n_t01",region_code:"cushing",  mean_vv:-15.09,std_vv:2.12,status:"OK"},
+    {tank_id:"cus_n_t02",region_code:"cushing",  mean_vv:-13.05,std_vv:3.26,status:"OK"},
+    {tank_id:"cus_s_t01",region_code:"cushing",  mean_vv:-16.45,std_vv:2.93,status:"OK"},
+    {tank_id:"cus_s_t02",region_code:"cushing",  mean_vv:-14.69,std_vv:3.24,status:"OK"},
+    {tank_id:"fuj_fn_t01",region_code:"fujairah",mean_vv:-7.99, std_vv:5.01,status:"OK"},
+    {tank_id:"fuj_fn_t02",region_code:"fujairah",mean_vv:-21.84,std_vv:3.74,status:"OK"},
+    {tank_id:"fuj_fs_t01",region_code:"fujairah",mean_vv:-25.92,std_vv:3.64,status:"OK"},
+    {tank_id:"rot_bo_t01",region_code:"rotterdam",mean_vv:-9.05,std_vv:6.47,status:"OK"},
+    {tank_id:"rot_ev_t01",region_code:"rotterdam",mean_vv:-10.79,std_vv:4.35,status:"OK"},
+    {tank_id:"rot_ev_t02",region_code:"rotterdam",mean_vv:-8.30, std_vv:3.43,status:"OK"},
+    {tank_id:"sgp_ju_t01",region_code:"singapore",mean_vv:-18.19,std_vv:6.22,status:"OK"},
+    {tank_id:"sgp_jv_t01",region_code:"singapore",mean_vv:-13.65,std_vv:8.98,status:"OK"},
+    {tank_id:"sgp_jv_t02",region_code:"singapore",mean_vv:-18.59,std_vv:5.78,status:"OK"},
+  ],
+  curated: Array(13).fill(null).map((_,i) => ({
+    tank_id: ["cus_n_t01","cus_n_t02","cus_s_t01","cus_s_t02","fuj_fn_t01","fuj_fn_t02","fuj_fs_t01","rot_bo_t01","rot_ev_t01","rot_ev_t02","sgp_ju_t01","sgp_jv_t01","sgp_jv_t02"][i],
+    region_code: ["cushing","cushing","cushing","cushing","fujairah","fujairah","fujairah","rotterdam","rotterdam","rotterdam","singapore","singapore","singapore"][i],
+    fill_proxy: null, vv_zscore: null, is_anomaly: false, status: "INSUFFICIENT_HISTORY", baseline_weeks: 0
+  })),
+  region_signal: [],
+  region_features: [
+    {region_code:"cushing",   mean_vv:-12.30,min_vv:-22.13,max_vv:-8.50,image_count:1},
+    {region_code:"rotterdam", mean_vv:-7.25, min_vv:-18.64,max_vv:-5.20,image_count:10},
+    {region_code:"fujairah",  mean_vv:-11.49,min_vv:-33.12,max_vv:-7.10,image_count:9},
+    {region_code:"singapore", mean_vv:-23.72,min_vv:-37.20,max_vv:-9.80,image_count:4},
+  ]
+};
+
+let corrChartObj = null, corrView = 'ts', corrJoined = [];
+function setCorrView(view) {
+  corrView = view;
+  ['ts','scatter'].forEach(v => document.getElementById('btn-corr-' + (v === 'ts' ? 'ts' : 'sc')).classList.toggle('active', v === view));
+  if (corrJoined.length) drawCorrChart(corrJoined);
+}
+async function fetchOilPrices(days) {
+  const sources = [
+    'https://raw.githubusercontent.com/datasets/oil-prices/main/data/wti-daily.csv',
+    'https://raw.githubusercontent.com/datasets/oil-prices/master/data/wti-daily.csv'
+  ];
+  for (const url of sources) {
+    try {
+      const resp = await fetch(url + '?_=' + Date.now(), { cache: 'no-store' });
+      if (!resp.ok) continue;
+      const text = await resp.text();
+      const lines = text.trim().split('\n').slice(1);
+      if (lines.length < 10) continue;
+      const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+      const prices = {};
+      for (const line of lines) {
+        const [date, price] = line.split(',');
+        if (date >= cutoff && price) prices[date] = parseFloat(price);
+      }
+      Object.assign(wtiPriceCache, prices);
+      return prices;
+    } catch (e) { console.warn('Oil price fetch failed for', url, e.message); }
+  }
+  return {};
+}
+function computeDailyAverages(tankHistory) {
+  const byDate = {};
+  for (const tankId in tankHistory) {
+    for (const entry of tankHistory[tankId]) {
+      const d = entry.obs_date;
+      if (!byDate[d]) byDate[d] = { dbVals: [], pctVals: [] };
+      if (entry.mean_vv !== null) {
+        byDate[d].dbVals.push(entry.mean_vv);
+        byDate[d].pctVals.push(entry.fill_proxy !== null ? entry.fill_proxy * 100 : vvToPct(entry.mean_vv));
+      }
+    }
+  }
+  const result = {};
+  for (const d in byDate) {
+    const db = byDate[d].dbVals, pct = byDate[d].pctVals;
+    result[d] = { avgDb: db.length ? db.reduce((a,b)=>a+b,0)/db.length : null, avgPct: pct.length ? pct.reduce((a,b)=>a+b,0)/pct.length : null };
+  }
+  return result;
+}
+function pearsonR(xs, ys) {
+  const n = xs.length;
+  if (n < 3) return null;
+  const mx = xs.reduce((a,b)=>a+b,0)/n, my = ys.reduce((a,b)=>a+b,0)/n;
+  let num=0, dx2=0, dy2=0;
+  for (let i=0;i<n;i++) { const dx=xs[i]-mx, dy=ys[i]-my; num+=dx*dy; dx2+=dx*dx; dy2+=dy*dy; }
+  const denom = Math.sqrt(dx2*dy2);
+  return denom === 0 ? 0 : num/denom;
+}
+function drawCorrChart(joined, pairedData) {
+  if (corrChartObj) corrChartObj.destroy();
+  const paired = pairedData || joined.filter(d => d.price !== null && d.avgPct !== null);
+  if (corrView === 'scatter') {
+    if (paired.length === 0) {
+      // No overlapping data — show message instead of empty chart
+      const ctx = document.getElementById('corrChart').getContext('2d');
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      ctx.font = '13px Inter, sans-serif';
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text3').trim() || '#999';
+      ctx.textAlign = 'center';
+      ctx.fillText('Not enough overlapping SAR + price data for scatter plot yet.', ctx.canvas.width / 2, ctx.canvas.height / 2);
+      ctx.fillText(`${Object.keys(joined.filter(d=>d.avgDb!==null)).length || 0} SAR days — need exact or ±3-day price matches`, ctx.canvas.width / 2, ctx.canvas.height / 2 + 22);
+      return;
+    }
+    const useMatched = paired[0] && paired[0].matchedPrice !== undefined;
+    corrChartObj = new Chart(document.getElementById('corrChart'), {
+      type: 'scatter',
+      data: { datasets: [
+        { label: 'Price vs Fill %', data: paired.map(d => ({ x: useMatched ? d.matchedPrice : d.price, y: d.avgPct })), backgroundColor: '#0d9e75', borderColor: 'rgba(13,158,117,0.4)', pointRadius: 6, pointHoverRadius: 9 },
+        { label: 'Price vs dB', data: paired.map(d => ({ x: useMatched ? d.matchedPrice : d.price, y: d.avgDb })), backgroundColor: '#0066CC', borderColor: 'rgba(0,102,204,0.4)', pointRadius: 6, pointHoverRadius: 9, yAxisID: 'yDb' }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: true, labels: { font: { size: 11 }, boxWidth: 8 } }, tooltip: { callbacks: { label: (ctx) => { const ds = ctx.dataset.label; return ds.includes('Fill') ? `$${ctx.parsed.x.toFixed(2)}/bbl \u2192 ${ctx.parsed.y.toFixed(1)}% fill` : `$${ctx.parsed.x.toFixed(2)}/bbl \u2192 ${ctx.parsed.y.toFixed(1)} dB`; } } } },
+        scales: { x: { title: { display: true, text: 'Crude oil price (USD/bbl)', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => '$' + v }, grid: { color: 'rgba(128,128,128,0.08)' } }, y: { position: 'left', min: 0, max: 100, title: { display: true, text: 'Average fill (%)', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(128,128,128,0.08)' } }, yDb: { position: 'right', title: { display: true, text: 'Mean VV (dB)', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { display: false } } }
+      }
+    });
+  } else {
+    const labels = joined.map(d => d.date);
+    corrChartObj = new Chart(document.getElementById('corrChart'), {
+      type: 'line',
+      data: { labels, datasets: [
+        { label: 'WTI crude (USD/bbl)', data: joined.map(d => d.price), borderColor: '#c47a00', backgroundColor: 'rgba(196,122,0,0.06)', tension: 0.3, pointRadius: 2, pointHoverRadius: 4, fill: true, yAxisID: 'yPrice', spanGaps: true },
+        { label: 'Avg dB', data: joined.map(d => d.avgDb !== null ? parseFloat(d.avgDb.toFixed(2)) : null), borderColor: '#0066CC', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2, yAxisID: 'yDb', spanGaps: true },
+        { label: 'Avg fill est.%', data: joined.map(d => d.avgPct !== null ? parseFloat(d.avgPct.toFixed(1)) : null), borderColor: '#0d9e75', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2, yAxisID: 'yPct', spanGaps: true }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: true, labels: { font: { size: 11 }, boxWidth: 10 } }, tooltip: { callbacks: { label: (ctx) => { const v = ctx.parsed.y; if (v === null) return ctx.dataset.label + ': N/A'; if (ctx.dataset.yAxisID === 'yPrice') return `WTI: $${v.toFixed(2)}/bbl`; if (ctx.dataset.yAxisID === 'yDb') return `Avg dB: ${v.toFixed(1)} dB`; return `Avg fill: ${v.toFixed(1)}%`; } } } },
+        scales: { x: { ticks: { font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 12 }, grid: { display: false } }, yPrice: { type: 'linear', position: 'left', title: { display: true, text: 'Crude oil price (USD/bbl)', font: { size: 10 } }, ticks: { font: { size: 10 }, callback: v => '$' + v }, grid: { color: 'rgba(128,128,128,0.08)' } }, yDb: { type: 'linear', position: 'right', title: { display: true, text: 'Mean VV (dB)', font: { size: 10 } }, ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { display: false } }, yPct: { type: 'linear', position: 'right', min: 0, max: 100, title: { display: true, text: 'Avg fill %', font: { size: 10 } }, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { display: false }, display: false } }
+      }
+    });
+  }
+}
+async function renderCorrelation(days) {
+  const prices = await fetchOilPrices(days);
+  const avgs = computeDailyAverages(historyData);
+  const priceDates = Object.keys(prices).sort();
+
+  // For each SAR date, find nearest price date (within 3 calendar days)
+  function nearestPrice(sarDate) {
+    const sd = new Date(sarDate + 'T00:00:00Z').getTime();
+    let best = null, bestDist = Infinity;
+    for (const pd of priceDates) {
+      const dist = Math.abs(new Date(pd + 'T00:00:00Z').getTime() - sd);
+      if (dist < bestDist) { bestDist = dist; best = pd; }
+    }
+    return best && bestDist <= 3 * 86400000 ? prices[best] : null;
+  }
+
+  // Build joined array: all price dates + all SAR dates (de-duped, sorted)
+  const allDates = [...new Set([...priceDates, ...Object.keys(avgs)])].sort();
+  corrJoined = allDates.map(d => ({
+    date: d,
+    price: prices[d] !== undefined ? prices[d] : null,
+    avgDb: avgs[d] ? avgs[d].avgDb : null,
+    avgPct: avgs[d] ? avgs[d].avgPct : null,
+    // For scatter: use nearest-date matching so sparse SAR dates still pair with prices
+    matchedPrice: avgs[d] ? nearestPrice(d) : null,
+  }));
+
+  // Use matched prices for correlation & scatter (exact-date overlap is too sparse)
+  const sarWithPrice = corrJoined.filter(d => d.avgDb !== null && d.matchedPrice !== null);
+  const rDb = pearsonR(sarWithPrice.map(d => d.matchedPrice), sarWithPrice.map(d => d.avgDb));
+  const rPct = pearsonR(sarWithPrice.map(d => d.matchedPrice), sarWithPrice.map(d => d.avgPct));
+  const corrLabel = document.getElementById('corr-label');
+  if (rDb !== null) {
+    corrLabel.textContent = `r(price,dB) = ${rDb.toFixed(3)}` + (rPct !== null ? ` | r(price,fill%) = ${rPct.toFixed(3)}` : '') + ` | ${sarWithPrice.length} paired observations`;
+  } else {
+    corrLabel.textContent = `${Object.keys(avgs).length} SAR days, ${priceDates.length} price days (need 3+ paired observations for correlation)`;
+  }
+  drawCorrChart(corrJoined, sarWithPrice);
+}
+// ── dB ↔ Fill % Interactive Explainer ───────────────────────
+(function() {
+  const slider = document.getElementById('db-slider');
+  const valLabel = document.getElementById('db-slider-val');
+  const fillPct = document.getElementById('db-fill-pct');
+  const fillLabel = document.getElementById('db-fill-label');
+  const fillBarInner = document.getElementById('db-fill-bar-inner');
+  const fillRect = document.getElementById('tank-fill-rect');
+  const explainText = document.getElementById('db-explain-text');
+  if (!slider) return;
+
+  function updateExplainer() {
+    const db = parseFloat(slider.value);
+    const pct = Math.max(0, Math.min(100, ((db - (-32)) / ((-5) - (-32))) * 100));
+    const pctRound = Math.round(pct);
+
+    // Update labels
+    valLabel.textContent = db.toFixed(1) + ' dB';
+
+    // Color based on fill level
+    let color, label;
+    if (pct > 60) { color = '#3a7a00'; label = 'above average'; }
+    else if (pct < 40) { color = '#cc2222'; label = 'below average'; }
+    else { color = '#c47a00'; label = 'near baseline'; }
+
+    fillPct.textContent = pctRound + '%';
+    fillPct.style.color = color;
+    fillLabel.textContent = label;
+    fillLabel.style.color = color;
+    fillBarInner.style.width = pct + '%';
+    fillBarInner.style.background = color;
+
+    // Tank SVG fill
+    const tankH = 136;
+    const fillH = tankH * (pct / 100);
+    const fillY = 22 + (tankH - fillH);
+    fillRect.setAttribute('y', fillY);
+    fillRect.setAttribute('height', fillH);
+    fillRect.setAttribute('fill', color);
+    fillRect.setAttribute('opacity', '0.25');
+
+    // Radar wave opacity (stronger return = stronger waves)
+    const waveOpacity = 0.2 + (pct / 100) * 0.8;
+    document.getElementById('radar-waves').style.opacity = waveOpacity;
+
+    // Explanation text
+    let physics, meaning;
+    if (db > -10) {
+      physics = `At <strong>${db.toFixed(1)} dB</strong>, the radar return is very strong. The satellite's C-band pulse is bouncing back almost entirely — like light off a mirror.`;
+      meaning = `This indicates a <strong>smooth, reflective surface</strong> — consistent with oil sitting at the top of the tank. The liquid surface acts as a near-perfect specular reflector, sending most of the radar energy straight back to the satellite.`;
+    } else if (db > -16) {
+      physics = `At <strong>${db.toFixed(1)} dB</strong>, the radar return is moderate. A meaningful portion of the signal is reflecting back, but some is being scattered.`;
+      meaning = `This suggests a <strong>partially filled tank</strong> — the surface may be a mix of liquid and exposed internal structures (floating roof edges, support columns). Some energy reflects cleanly off liquid, some scatters off metal.`;
+    } else if (db > -22) {
+      physics = `At <strong>${db.toFixed(1)} dB</strong>, the radar return is weak. Most of the C-band energy is being scattered in multiple directions rather than returning to the satellite.`;
+      meaning = `This is consistent with a <strong>mostly empty tank</strong> — exposed internal walls, equipment, and the tank bottom create rough surfaces that diffuse the radar signal. Less liquid surface = less mirror-like reflection.`;
+    } else {
+      physics = `At <strong>${db.toFixed(1)} dB</strong>, the radar return is very weak. Almost all of the signal is lost to diffuse scattering.`;
+      meaning = `This indicates an <strong>empty or near-empty tank</strong>. The interior geometry (corrugated walls, support struts, drain pipes) breaks up the radar wavefront. Essentially no smooth liquid surface remains to reflect coherently.`;
+    }
+    explainText.innerHTML = `<p style="margin-bottom:8px">${physics}</p><p>${meaning}</p>`;
+  }
+
+  slider.addEventListener('input', updateExplainer);
+  updateExplainer(); // initial render
+})();
+
+async function init() {
+  // Load history + oil prices in parallel before drawing anything
+  await Promise.all([loadSnapshot(), loadHistory(90), fetchOilPrices(365)]);
+  if (!selectedTank && snapshotData && snapshotData.tank_features) {
+    const tanks = dedupBy(snapshotData.tank_features, 'tank_id');
+    if (tanks.length > 0) selectTank(tanks[0].tank_id);
+  }
+  renderCorrelation(90);
+  renderPipelineHealth();
+}
+init();
+
+function renderPipelineHealth() {
+  const el = document.getElementById('pipeline-health');
+  if (!el || !snapshotData) return;
+  const obsDate = snapshotData.obs_date;
+  if (!obsDate) { el.innerHTML = 'No observation data available.'; return; }
+
+  const ageDays = Math.floor((Date.now() - new Date(obsDate + 'T00:00:00Z')) / 86400000);
+  const genAt = snapshotData.generated_at || '';
+
+  // Determine expected next observation (SAR revisit ~6 days)
+  const lastObs = new Date(obsDate + 'T00:00:00Z');
+  const nextExpected = new Date(lastObs.getTime() + 6 * 86400000);
+  const nextStr = nextExpected.toISOString().slice(0, 10);
+
+  // Scheduler info
+  const schedulers = [
+    { name: 'stage2-daily-ingest', time: '03:00 UTC', desc: 'SAR data ingestion' },
+    { name: 'otm-daily-trigger-dev', time: '02:00 UTC', desc: 'Daily runner' },
+    { name: 'stage3-daily-signals', time: '04:00 UTC', desc: 'Signal processing' },
+  ];
+
+  let statusIcon, statusText, statusColor;
+  if (ageDays <= 2) {
+    statusIcon = '🟢'; statusText = 'Healthy'; statusColor = 'var(--ok-text)';
+  } else if (ageDays <= 6) {
+    statusIcon = '🟡'; statusText = 'Normal gap (SAR revisit cycle)'; statusColor = 'var(--warn-text)';
+  } else if (ageDays <= 12) {
+    statusIcon = '🟠'; statusText = 'Extended gap — may need attention'; statusColor = 'var(--warn-text)';
+  } else {
+    statusIcon = '🔴'; statusText = 'Stale — pipeline likely broken'; statusColor = 'var(--err-text)';
+  }
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;margin-bottom:12px">
+      <div><span style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em">Status</span><br>
+        <span style="font-size:14px">${statusIcon}</span> <strong style="color:${statusColor}">${statusText}</strong></div>
+      <div><span style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em">Last observation</span><br>
+        <strong>${obsDate}</strong> <span style="color:var(--text3)">(${ageDays}d ago)</span></div>
+      <div><span style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em">Next expected</span><br>
+        ${nextStr} <span style="color:var(--text3)">(~6-day SAR revisit)</span></div>
+      <div><span style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em">API response</span><br>
+        ${genAt ? genAt.slice(0,19) : '—'}</div>
+    </div>
+    <div style="font-size:12px;color:var(--text3);border-top:1px solid var(--border);padding-top:8px">
+      <strong style="color:var(--text2)">Scheduled jobs:</strong>
+      ${schedulers.map(s => `<span style="margin-left:12px">${s.desc} <code style="font-size:11px;background:var(--bg3);padding:1px 5px;border-radius:3px">${s.time}</code></span>`).join(' ·')}
+      · <a href="https://github.com/oguzhan-canada/otm-agent-site/actions/workflows/watchdog.yml" target="_blank" style="color:var(--accent)">Watchdog</a> <code style="font-size:11px;background:var(--bg3);padding:1px 5px;border-radius:3px">14:00 UTC</code>
+    </div>`;
+}
+
+// Adaptive polling: slow down after repeated failures
+function schedulePoll() {
+  const interval = consecutiveFailures >= 3 ? POLL_BACKOFF_MS : POLL_INTERVAL_MS;
+  setTimeout(() => {
+    loadSnapshot();
+    loadHistory(parseInt(document.getElementById('days-select').value));
+    schedulePoll();
+  }, interval);
+}
+schedulePoll();
+
+// ── Agent Chat Widget ──────────────────────────────────────
+const AGENT_API_URLS = [
+  "https://otm-agent-chat-481921676964.northamerica-northeast1.run.app",
+  "https://otm-agent-chat-zdqsboxooa-nn.a.run.app"
+];
+let agentApiBase = AGENT_API_URLS[0];
+let chatSessionId = localStorage.getItem('otm-chat-session') || crypto.randomUUID().slice(0, 12);
+localStorage.setItem('otm-chat-session', chatSessionId);
+let chatHistory = JSON.parse(localStorage.getItem('otm-chat-history') || '[]');
+
+const SUGGESTED_QUESTIONS = [
+  "What's the latest fill at Cushing?",
+  "Any anomalies this week?",
+  "How does this system work?",
+  "Compare Rotterdam vs Fujairah",
+  "Which tanks show the most change?"
+];
+
+function initChat() {
+  // Inject chat HTML into the page
+  const chatHTML = `
+  <button class="chat-fab" id="chat-fab" onclick="toggleChat()" title="Ask OTM Agent">
+    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/><path d="M7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
+    <span class="chat-badge"></span>
+  </button>
+  <div class="chat-panel" id="chat-panel">
+    <div class="chat-header">
+      <div class="chat-header-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+      </div>
+      <div>
+        <div class="chat-header-title">OTM Agent</div>
+        <div class="chat-header-sub">AI-powered oil tank analyst</div>
+      </div>
+      <button class="chat-close" onclick="toggleChat()">&times;</button>
+    </div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-typing" id="chat-typing"><span></span><span></span><span></span></div>
+    <div class="chat-suggestions" id="chat-suggestions"></div>
+    <div class="chat-input-area">
+      <input class="chat-input" id="chat-input" type="text"
+             placeholder="Ask about oil tank data..."
+             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}" />
+      <button class="chat-send" id="chat-send" onclick="sendChat()">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', chatHTML);
+
+  // Render history or welcome
+  if (chatHistory.length > 0) {
+    chatHistory.forEach(m => appendChatMessage(m.role, m.text, false));
+  } else {
+    appendChatMessage('bot', "👋 Hi! I'm the **OTM Agent** — I can answer questions about oil tank fill levels, anomalies, regional trends, and radar signals across all 4 monitored hubs.\n\nTry one of the suggestions below, or ask anything!", false);
+  }
+  renderSuggestions();
+  scrollChatBottom();
+}
+
+function toggleChat() {
+  const panel = document.getElementById('chat-panel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    document.getElementById('chat-input').focus();
+    scrollChatBottom();
+  }
+}
+
+function appendChatMessage(role, text, save = true) {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role}`;
+  // Simple markdown-like formatting for bot messages
+  if (role === 'bot') {
+    div.innerHTML = text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+  } else {
+    div.textContent = text;
+  }
+  container.appendChild(div);
+  if (save) {
+    chatHistory.push({ role, text });
+    // Keep last 50 messages
+    if (chatHistory.length > 50) chatHistory = chatHistory.slice(-50);
+    localStorage.setItem('otm-chat-history', JSON.stringify(chatHistory));
+  }
+}
+
+function renderSuggestions() {
+  const container = document.getElementById('chat-suggestions');
+  if (!container) return;
+  if (chatHistory.filter(m => m.role === 'user').length >= 2) {
+    container.style.display = 'none';
+    return;
+  }
+  container.innerHTML = SUGGESTED_QUESTIONS.map(q =>
+    `<button class="chat-sug-btn" onclick="askSuggestion('${q.replace(/'/g, "\\'")}')">${q}</button>`
+  ).join('');
+}
+
+function askSuggestion(q) {
+  document.getElementById('chat-input').value = q;
+  sendChat();
+}
+
+function scrollChatBottom() {
+  const msgs = document.getElementById('chat-messages');
+  if (msgs) msgs.scrollTop = msgs.scrollHeight;
+}
+
+// Build context from currently loaded dashboard data
+function buildDashboardContext() {
+  if (!snapshotData) return {};
+  const ctx = {
+    obs_date: snapshotData.obs_date,
+    tank_count: (snapshotData.tank_features || []).length,
+    regions: {},
+  };
+  // Summarise per-region
+  (snapshotData.region_signal || []).forEach(r => {
+    ctx.regions[r.region_code] = {
+      avg_fill: r.avg_fill_proxy,
+      min_fill: r.min_fill_proxy,
+      max_fill: r.max_fill_proxy,
+      tanks: r.tank_count,
+    };
+  });
+  // Per-tank summary
+  ctx.tanks = (snapshotData.curated || []).map(t => ({
+    id: t.tank_id, region: t.region_code,
+    fill: t.fill_proxy, zscore: t.vv_zscore,
+    anomaly: t.is_anomaly, delta: t.delta_vv,
+  }));
+  return ctx;
+}
+
+// Build a tank-specific analysis — rich response with price overlay when relevant
+function buildTankAnalysis(tankId, tank, tf, data, q) {
+  let resp = `🛢️ **${tankId} — Deep Analysis** (${data.obs_date})\n\n`;
+
+  // Current snapshot
+  const fill = tank.fill_proxy != null ? Math.round(tank.fill_proxy) : null;
+  resp += `**Current State:**\n`;
+  resp += `• Fill estimate: **${fill != null ? fill + '%' : 'N/A'}**\n`;
+  resp += `• Z-score: ${tank.vv_zscore != null ? tank.vv_zscore.toFixed(2) : 'N/A'}`;
+  resp += tank.is_anomaly ? ' ⚠ **anomaly**' : ' (normal)';
+  resp += `\n• Signal change (ΔdB): ${tank.delta_vv != null ? tank.delta_vv.toFixed(3) : 'N/A'} dB\n`;
+  resp += `• Region: **${tank.region_code}**\n`;
+  if (tf) {
+    resp += `• Mean VV: ${tf.mean_vv != null ? tf.mean_vv.toFixed(2) : 'N/A'} dB\n`;
+    resp += `• VV range: ${tf.min_vv != null ? tf.min_vv.toFixed(2) : '?'} to ${tf.max_vv != null ? tf.max_vv.toFixed(2) : '?'} dB\n`;
+  }
+  resp += `• Baseline weeks: ${tank.baseline_weeks || 'N/A'}\n`;
+
+  // History trend if available
+  const hist = historyData[tankId];
+  if (hist && hist.length >= 2) {
+    const recent = hist.slice(-7);
+    const firstObs = recent[0];
+    const lastObs = recent[recent.length - 1];
+    const firstFill = firstObs.fill_proxy ?? vvToPct(firstObs.mean_vv);
+    const lastFill = lastObs.fill_proxy ?? vvToPct(lastObs.mean_vv);
+    const fillDelta = lastFill - firstFill;
+    const dir = fillDelta > 2 ? '📈 **rising**' : fillDelta < -2 ? '📉 **falling**' : '➡️ **stable**';
+
+    resp += `\n**📊 Recent Trend** (last ${recent.length} observations):\n`;
+    resp += `• ${firstObs.obs_date}: ${Math.round(firstFill)}% → ${lastObs.obs_date}: ${Math.round(lastFill)}%\n`;
+    resp += `• Direction: ${dir} (${fillDelta > 0 ? '+' : ''}${fillDelta.toFixed(1)}%)\n`;
+
+    // dB values
+    const firstDb = firstObs.mean_vv;
+    const lastDb = lastObs.mean_vv;
+    if (firstDb != null && lastDb != null) {
+      const dbDelta = lastDb - firstDb;
+      resp += `• Radar: ${firstDb.toFixed(2)} dB → ${lastDb.toFixed(2)} dB (${dbDelta > 0 ? '+' : ''}${dbDelta.toFixed(2)} dB)\n`;
+    }
+
+    // Mini sparkline of recent fill values
+    resp += `• Observations: `;
+    recent.forEach(r => {
+      const f = r.fill_proxy ?? vvToPct(r.mean_vv);
+      resp += `${Math.round(f)}% `;
+    });
+    resp += `\n`;
+  }
+
+  // Price-fill relationship if user asks about price/fill/relation/correlation
+  const wantsPriceAnalysis = q.includes('price') || q.includes('fill') || q.includes('relation') || q.includes('correlat') || q.includes('wti') || q.includes('analysis') || q.includes('analyz');
+
+  if (wantsPriceAnalysis && hist && hist.length >= 3) {
+    const priceDates = Object.keys(wtiPriceCache).sort();
+    if (priceDates.length > 0) {
+    resp += `\n**💰 Price vs. Fill Analysis:**\n`;
+
+    let pairs = [];
+    hist.forEach(h => {
+      const f = h.fill_proxy ?? vvToPct(h.mean_vv);
+      const date = h.obs_date;
+      // Try exact date match or nearby (±3 days)
+      let price = wtiPriceCache[date];
+      if (price == null) {
+        const d = new Date(date);
+        for (let offset = 1; offset <= 3 && price == null; offset++) {
+          const d1 = new Date(d); d1.setDate(d1.getDate() - offset);
+          const d2 = new Date(d); d2.setDate(d2.getDate() + offset);
+          price = wtiPriceCache[d1.toISOString().slice(0, 10)] || wtiPriceCache[d2.toISOString().slice(0, 10)];
+        }
+      }
+      if (price != null && f != null) pairs.push({ date, fill: f, price: Number(price) });
+    });
+
+    if (pairs.length >= 3) {
+      // Compute simple correlation
+      const n = pairs.length;
+      const meanP = pairs.reduce((s, p) => s + p.price, 0) / n;
+      const meanF = pairs.reduce((s, p) => s + p.fill, 0) / n;
+      let num = 0, denP = 0, denF = 0;
+      pairs.forEach(p => {
+        const dp = p.price - meanP;
+        const df = p.fill - meanF;
+        num += dp * df;
+        denP += dp * dp;
+        denF += df * df;
+      });
+      const r = (denP > 0 && denF > 0) ? num / Math.sqrt(denP * denF) : 0;
+
+      // Price range over period
+      const minPrice = Math.min(...pairs.map(p => p.price));
+      const maxPrice = Math.max(...pairs.map(p => p.price));
+      const latestPair = pairs[pairs.length - 1];
+      const firstPair = pairs[0];
+
+      resp += `• WTI range: $${minPrice.toFixed(2)} – $${maxPrice.toFixed(2)}/bbl over ${n} paired observations\n`;
+      resp += `• Correlation (r): **${r.toFixed(3)}**`;
+      if (Math.abs(r) > 0.5) resp += r > 0 ? ' — **positive** (fill rises with price)' : ' — **negative** (fill falls as price rises, classic contango)';
+      else if (Math.abs(r) > 0.2) resp += ' — **weak** relationship';
+      else resp += ' — **no clear** linear relationship';
+      resp += `\n`;
+
+      // Interpretation
+      resp += `\n**🔍 Interpretation:**\n`;
+      const priceTrend = latestPair.price > firstPair.price ? 'rising' : latestPair.price < firstPair.price ? 'falling' : 'flat';
+      const fillTrend = latestPair.fill > firstPair.fill + 2 ? 'rising' : latestPair.fill < firstPair.fill - 2 ? 'falling' : 'stable';
+
+      if (priceTrend === 'falling' && fillTrend === 'rising') {
+        resp += `Prices fell while fill rose — consistent with **contango storage**. Traders may be buying cheap crude and storing it, expecting higher future prices.\n`;
+      } else if (priceTrend === 'rising' && fillTrend === 'falling') {
+        resp += `Prices rose while fill dropped — consistent with **inventory drawdown**. Stored oil is being sold into a strengthening market.\n`;
+      } else if (priceTrend === 'rising' && fillTrend === 'rising') {
+        resp += `Both price and fill are rising — suggests **strong demand** outpacing supply adjustments. ${tank.region_code === 'fujairah' ? 'Fujairah as a Middle East hub may be seeing pre-emptive stockpiling amid geopolitical uncertainty.' : 'Could indicate strategic building ahead of expected disruptions.'}\n`;
+      } else if (priceTrend === 'falling' && fillTrend === 'falling') {
+        resp += `Both price and fill are falling — suggests **demand destruction** or seasonal drawdown. Markets may be pricing in lower future demand.\n`;
+      } else {
+        resp += `Price is ${priceTrend}, fill is ${fillTrend}. The decoupling suggests **regional factors** (maintenance, cargo timing, refinery schedules) outweigh global price signals for this tank.\n`;
+      }
+
+      // Regional geopolitical context
+      const regionNotes = {
+        cushing: 'As the WTI delivery point, Cushing shows the tightest price-fill coupling. US SPR releases, shale production changes, and pipeline flows directly impact levels.',
+        rotterdam: 'Rotterdam serves as Europe\'s key hub. Russian sanctions, North Sea production, and refinery maintenance drive regional dynamics beyond WTI price.',
+        fujairah: 'Fujairah acts as a Middle East buffer. OPEC+ production decisions, Strait of Hormuz tensions, and Asian demand create fill patterns that may diverge from WTI.',
+        singapore: 'Singapore reflects Asian demand. China import policy, Indian refining activity, and regional monsoon seasons influence tank levels independently of WTI.'
+      };
+      if (regionNotes[tank.region_code]) {
+        resp += `\n**🌍 Regional Context:** ${regionNotes[tank.region_code]}\n`;
+      }
+    } else {
+      resp += `Only ${pairs.length} paired price-fill observations available — need ≥3 for correlation analysis. More data will accumulate as the pipeline runs daily.\n`;
+    }
+    } // end priceDates.length > 0
+  }
+
+  return resp;
+}
+
+// Build a data-driven analytical narrative from dashboard + history data
+function buildDataAnalysis(data, curated, regions, tankFeatures) {
+  const obs = data.obs_date;
+  const anomalies = curated.filter(t => t.is_anomaly);
+  const allFills = curated.filter(t => t.fill_proxy != null).map(t => t.fill_proxy);
+  const avgFill = allFills.length ? Math.round(allFills.reduce((a,b) => a+b, 0) / allFills.length) : null;
+
+  // Compute per-region stats
+  const regionStats = {};
+  regions.forEach(r => {
+    regionStats[r.region_code] = {
+      avg: r.avg_fill_proxy != null ? Math.round(r.avg_fill_proxy) : null,
+      tanks: r.tank_count || 0,
+    };
+  });
+
+  // Sort tanks by signal change
+  const movers = [...curated].filter(t => t.delta_vv != null).sort((a, b) => Math.abs(b.delta_vv) - Math.abs(a.delta_vv));
+  const topMover = movers[0];
+
+  // Identify highest/lowest fill tanks
+  const filled = [...curated].filter(t => t.fill_proxy != null).sort((a, b) => b.fill_proxy - a.fill_proxy);
+  const highest = filled[0];
+  const lowest = filled[filled.length - 1];
+
+  // Use history data if available
+  let trendNote = '';
+  if (Object.keys(historyData).length > 0) {
+    const tankIds = Object.keys(historyData);
+    let rising = 0, falling = 0, stable = 0;
+    tankIds.forEach(tid => {
+      const h = historyData[tid];
+      if (!h || h.length < 2) return;
+      const recent = h.slice(-3);
+      const fills = recent.filter(r => r.fill_proxy != null || r.mean_vv != null);
+      if (fills.length >= 2) {
+        const last = fills[fills.length - 1];
+        const prev = fills[0];
+        const lastVal = last.fill_proxy ?? vvToPct(last.mean_vv);
+        const prevVal = prev.fill_proxy ?? vvToPct(prev.mean_vv);
+        const diff = lastVal - prevVal;
+        if (diff > 3) rising++;
+        else if (diff < -3) falling++;
+        else stable++;
+      }
+    });
+    if (rising + falling + stable > 0) {
+      trendNote = `\n\n**📈 Recent trends** (last 2-3 observations):\n`;
+      trendNote += `• ${rising} tank${rising !== 1 ? 's' : ''} trending **up** (fill increasing)\n`;
+      trendNote += `• ${falling} tank${falling !== 1 ? 's' : ''} trending **down** (fill decreasing)\n`;
+      trendNote += `• ${stable} tank${stable !== 1 ? 's' : ''} **stable** (< 3% change)\n`;
+    }
+  }
+
+  // WTI price context
+  let priceNote = '';
+  const priceDates = Object.keys(wtiPriceCache).sort();
+  if (priceDates.length > 0) {
+    const latestDate = priceDates[priceDates.length - 1];
+    const latestVal = Number(wtiPriceCache[latestDate]);
+    const weekAgoDate = priceDates.length >= 5 ? priceDates[priceDates.length - 5] : null;
+    priceNote = `\n\n**💰 WTI Crude**: $${latestVal.toFixed(2)}/bbl (${latestDate})`;
+    if (weekAgoDate) {
+      const weekAgoVal = Number(wtiPriceCache[weekAgoDate]);
+      const priceDiff = latestVal - weekAgoVal;
+      const dir = priceDiff > 0 ? '↑' : priceDiff < 0 ? '↓' : '→';
+      priceNote += ` — ${dir} $${Math.abs(priceDiff).toFixed(2)} vs. ${weekAgoDate}`;
+    }
+  }
+
+  // Build narrative
+  let resp = `📊 **Data Analysis & Findings** — as of ${obs}\n\n`;
+
+  // Overview
+  resp += `**Overview:** Monitoring **${curated.length} tanks** across **${regions.length} hubs**. `;
+  if (avgFill != null) {
+    resp += `Global average fill proxy: **${avgFill}%**`;
+    if (avgFill > 60) resp += ` — above-average storage levels, suggesting comfortable supply.`;
+    else if (avgFill > 40) resp += ` — near baseline levels, supply/demand roughly balanced.`;
+    else resp += ` — below-average levels, potentially tightening supply.`;
+  }
+
+  // Regional breakdown
+  resp += `\n\n**🌍 Regional Breakdown:**\n`;
+  Object.entries(regionStats).forEach(([region, s]) => {
+    const emoji = region === 'cushing' ? '🇺🇸' : region === 'rotterdam' ? '🇳🇱' : region === 'fujairah' ? '🇦🇪' : '🇸🇬';
+    const fillStr = s.avg != null ? `${s.avg}%` : 'N/A';
+    let interpretation = '';
+    if (s.avg != null) {
+      if (s.avg > 60) interpretation = ' (elevated)';
+      else if (s.avg > 40) interpretation = ' (normal)';
+      else interpretation = ' (low)';
+    }
+    resp += `• ${emoji} **${region}**: avg fill **${fillStr}**${interpretation} — ${s.tanks} tanks\n`;
+  });
+
+  // Key signals
+  resp += `\n**🔍 Key Signals:**\n`;
+  if (highest && lowest && highest.tank_id !== lowest.tank_id) {
+    resp += `• Highest fill: **${highest.tank_id}** at ${Math.round(highest.fill_proxy)}% (${highest.region_code})\n`;
+    resp += `• Lowest fill: **${lowest.tank_id}** at ${Math.round(lowest.fill_proxy)}% (${lowest.region_code})\n`;
+  }
+  if (topMover) {
+    const dir = topMover.delta_vv > 0 ? 'increased' : 'decreased';
+    resp += `• Biggest signal change: **${topMover.tank_id}** — ${dir} ${Math.abs(topMover.delta_vv).toFixed(3)} dB\n`;
+  }
+
+  // Anomalies
+  if (anomalies.length > 0) {
+    resp += `\n**⚠ Anomalies (${anomalies.length}):**\n`;
+    anomalies.forEach(t => {
+      const fill = t.fill_proxy != null ? Math.round(t.fill_proxy) + '%' : 'N/A';
+      resp += `• **${t.tank_id}** (${t.region_code}): fill ${fill}, z-score ${t.vv_zscore != null ? t.vv_zscore.toFixed(2) : 'N/A'} — statistically unusual reading vs baseline\n`;
+    });
+  } else {
+    resp += `\n✅ **No anomalies** — all tanks within normal statistical bounds.\n`;
+  }
+
+  // Trends
+  resp += trendNote;
+
+  // Price
+  resp += priceNote;
+
+  // Narrative conclusion
+  resp += `\n\n**📖 The Story:**\n`;
+  if (anomalies.length > 0 && avgFill != null && avgFill < 40) {
+    resp += `Storage levels are running low across monitored hubs, with ${anomalies.length} anomalous reading${anomalies.length > 1 ? 's' : ''}. This could signal supply tightening — worth watching for price support.`;
+  } else if (avgFill != null && avgFill > 60) {
+    resp += `Storage is elevated, suggesting ample supply. If prices are also soft, this fits a contango storage play pattern. Watch for drawdowns as the market rebalances.`;
+  } else if (anomalies.length > 0) {
+    resp += `Most tanks are near baseline levels, but ${anomalies.length} anomal${anomalies.length > 1 ? 'ies' : 'y'} suggest localized activity worth monitoring. Individual tank movements may reflect regional supply shifts rather than a global trend.`;
+  } else {
+    resp += `Steady state across all hubs — no unusual activity detected. Storage levels are within normal ranges, suggesting balanced supply/demand conditions globally.`;
+  }
+
+  return resp;
+}
+
+// Smart local responses using dashboard data
+function tryLocalAnswer(query) {
+  const q = query.toLowerCase();
+  const data = snapshotData;
+  if (!data) return null;
+
+  const curated = data.curated || [];
+  const regions = data.region_signal || [];
+  const tankFeatures = data.tank_features || [];
+
+  // ── Tank-specific queries (check FIRST — if user names a tank, always prioritize) ──
+  const tankMatch = q.match(/([a-z]{3}_[a-z]{2}_t\d{2})/);
+  if (tankMatch) {
+    const tankId = tankMatch[1];
+    const tank = curated.find(t => t.tank_id === tankId);
+    const tf = tankFeatures.find(t => t.tank_id === tankId);
+    if (tank) {
+      return buildTankAnalysis(tankId, tank, tf, data, q);
+    }
+  }
+
+  // ── Analytical / conceptual questions ──
+
+  // Price-fill relationship / geopolitics / correlation (generic, no specific tank)
+  if ((q.includes('price') && q.includes('fill')) || q.includes('geopolit') || (q.includes('relation') && (q.includes('price') || q.includes('oil'))) || (q.includes('correlat') && q.includes('fill'))) {
+    return `📈 **Oil Price vs. Tank Fill Levels — The Relationship**\n\n**The basics:** When oil prices **drop**, traders buy cheap crude and store it → tank fill levels **rise**. When prices **rise**, stored oil gets sold → fill levels **drop**. This is called the **contango trade** (store now, sell later at higher futures price).\n\n**How we see it:** Our SAR radar measures physical tank surfaces. Fuller tanks have smoother surfaces → stronger radar return (less negative dB). The Daily Trend chart overlays WTI crude prices on fill signals so you can spot these patterns.\n\n**Geopolitical factors that affect both:**\n• 🇸🇦 **OPEC+ production cuts** → reduced supply → prices rise, fill levels drop\n• 🇷🇺 **Sanctions/embargoes** → rerouted trade flows → Fujairah & Singapore may see unusual builds\n• 🇺🇸 **SPR releases** → Cushing fill levels spike as government barrels enter the market\n• 🌍 **Conflict/disruption** (Strait of Hormuz, Red Sea) → shipping delays → regional fill divergence\n• 📊 **EIA weekly reports** → inventory surprises cause price swings within hours\n\n**Regional dynamics:**\n• **Cushing** — most price-sensitive (WTI delivery point). Fill tracks US supply/demand tightly\n• **Rotterdam** — European Brent benchmark hub. Affected by Russian gas/oil policy\n• **Fujairah** — Middle East buffer. Fill levels respond to OPEC decisions\n• **Singapore** — Asia demand barometer. China import policy drives levels\n\n_Check the Correlation tab above for scatter-plot analysis of price vs. signal._`;
+  }
+
+  // Oil price / WTI general
+  if (q.includes('oil price') || q.includes('wti') || q.includes('crude price')) {
+    return `📈 **Oil Price & Tank Signals**\n\nThe Daily Trend chart overlays WTI crude prices on per-tank fill signals.\n\n**Key dynamics:**\n• **Rising prices** → traders sell stored oil → fill levels tend to drop\n• **Falling prices** → traders buy & store cheap oil → fill levels tend to rise (contango)\n• **Flat prices** → inventory builds/draws follow seasonal patterns & refinery demand\n\n**What our data shows:**\n• SAR-based fill estimates measure **physical tank levels** via radar backscatter\n• WTI prices reflect **market expectations** of supply/demand\n• Cushing (US benchmark hub) shows the strongest price-fill correlation\n• Overseas hubs (Rotterdam, Fujairah, Singapore) respond more to regional factors\n\n_Check the **Correlation** tab above for time-series and scatter-plot analysis._`;
+  }
+
+  // Explain / what is questions about the project (only if NOT asking about data/metrics/findings)
+  if (q.includes('explain') && !q.includes('price') && !q.includes('fill') && !q.includes('geopolit') && !q.includes('metric') && !q.includes('finding') && !q.includes('data') && !q.includes('week') && !q.includes('story') && !q.includes('trend') && !q.includes('last') && !q.includes('recent')) {
+    return `🛰️ **OTM-Agent in a Nutshell**\n\nWe use **satellites** (Sentinel-1 SAR) to monitor **oil storage tanks** around the world — like having eyes in space watching how full or empty they are.\n\n**4 global hubs monitored:**\n• Cushing 🇺🇸 • Rotterdam 🇳🇱 • Fujairah 🇦🇪 • Singapore 🇸🇬\n\n**How:** Radar bounces off tank surfaces. Full tanks = smooth surface = strong signal. Empty tanks = rough surface = weak signal. Our pipeline processes this daily and translates radar strength (dB) into fill percentages.\n\n**Why it matters:** Oil traders and analysts need to know global storage levels. More storage = oversupply risk. Less storage = shortage risk. This intelligence helps forecast prices.\n\nAsk me about any specific hub, tank, or trend!`;
+  }
+
+  // Data analysis / metrics / findings / story / weekly summary
+  if (q.includes('metric') || q.includes('finding') || q.includes('story') || q.includes('summar') || q.includes('analysis') || q.includes('analyz') || q.includes('insight') || q.includes('tell') ||
+      ((q.includes('last') || q.includes('recent') || q.includes('this')) && (q.includes('week') || q.includes('day')))) {
+    return buildDataAnalysis(data, curated, regions, tankFeatures);
+  }
+
+  // Latest fill / status queries (only for direct data requests, not analytical)
+  if ((q.includes('latest') || q.includes('current') || q.includes('status')) ||
+      (q.includes('fill') && !q.includes('relation') && !q.includes('explain') && !q.includes('correlat') && !q.includes('price') && !q.includes('geopolit') && q.length < 60)) {
+    if (q.includes('cushing') || q.includes('rotterdam') || q.includes('fujairah') || q.includes('singapore')) {
+      const regionKey = q.includes('cushing') ? 'cushing' : q.includes('rotterdam') ? 'rotterdam' : q.includes('fujairah') ? 'fujairah' : 'singapore';
+      const rData = regions.find(r => r.region_code === regionKey);
+      const rTanks = curated.filter(t => t.region_code === regionKey);
+      if (rData) {
+        let resp = `📊 **${regionKey.charAt(0).toUpperCase() + regionKey.slice(1)}** as of ${data.obs_date}:\n\n`;
+        resp += `• Average fill: **${rData.avg_fill_proxy != null ? Math.round(rData.avg_fill_proxy) + '%' : 'N/A'}**\n`;
+        resp += `• Range: ${rData.min_fill_proxy != null ? Math.round(rData.min_fill_proxy) : '?'}% – ${rData.max_fill_proxy != null ? Math.round(rData.max_fill_proxy) : '?'}%\n`;
+        resp += `• Tanks: ${rData.tank_count || rTanks.length}\n\n`;
+        rTanks.forEach(t => {
+          const fill = t.fill_proxy != null ? Math.round(t.fill_proxy) + '%' : 'N/A';
+          const flag = t.is_anomaly ? ' ⚠' : '';
+          resp += `  **${t.tank_id}**: ${fill}${flag}\n`;
+        });
+        return resp;
+      }
+    }
+    // General status
+    let resp = `📊 **Dashboard Summary** — ${data.obs_date}\n\n`;
+    resp += `${curated.length} tanks across ${regions.length} hubs:\n\n`;
+    regions.forEach(r => {
+      const fill = r.avg_fill_proxy != null ? Math.round(r.avg_fill_proxy) + '%' : 'N/A';
+      resp += `• **${r.region_code}**: avg fill ${fill} (${r.tank_count} tanks)\n`;
+    });
+    const anomalies = curated.filter(t => t.is_anomaly);
+    if (anomalies.length > 0) {
+      resp += `\n⚠ **${anomalies.length} anomalies**: ${anomalies.map(t => t.tank_id).join(', ')}`;
+    } else {
+      resp += `\n✅ No anomalies detected`;
+    }
+    return resp;
+  }
+
+  // Anomaly queries
+  if (q.includes('anomal') || q.includes('unusual') || q.includes('alert') || q.includes('warning')) {
+    const anomalies = curated.filter(t => t.is_anomaly);
+    if (anomalies.length === 0) {
+      return `✅ **No anomalies detected** as of ${data.obs_date}. All ${curated.length} tanks are within normal statistical bounds (|z-score| < 2.0).`;
+    }
+    let resp = `⚠ **${anomalies.length} anomal${anomalies.length === 1 ? 'y' : 'ies'}** detected as of ${data.obs_date}:\n\n`;
+    anomalies.forEach(t => {
+      const fill = t.fill_proxy != null ? Math.round(t.fill_proxy) + '%' : 'N/A';
+      resp += `• **${t.tank_id}** (${t.region_code}): fill ${fill}, z-score ${t.vv_zscore != null ? t.vv_zscore.toFixed(2) : 'N/A'}, Δ ${t.delta_vv != null ? t.delta_vv.toFixed(2) : 'N/A'} dB\n`;
+    });
+    resp += `\n_Anomaly = |z-score| > 2.0 — a statistically unusual change vs baseline, not necessarily a problem._`;
+    return resp;
+  }
+
+  // Compare regions
+  if (q.includes('compare') || q.includes('vs') || q.includes('versus') || q.includes('difference')) {
+    let resp = `📊 **Regional Comparison** — ${data.obs_date}\n\n`;
+    resp += `| Region | Avg Fill | Tanks | Range |\n`;
+    resp += `|--------|----------|-------|-------|\n`;
+    regions.forEach(r => {
+      const fill = r.avg_fill_proxy != null ? Math.round(r.avg_fill_proxy) + '%' : 'N/A';
+      const range = `${r.min_fill_proxy != null ? Math.round(r.min_fill_proxy) : '?'}–${r.max_fill_proxy != null ? Math.round(r.max_fill_proxy) : '?'}%`;
+      resp += `| **${r.region_code}** | ${fill} | ${r.tank_count} | ${range} |\n`;
+    });
+    return resp;
+  }
+
+  // Oil price / correlation
+  if (q.includes('oil price') || q.includes('wti') || q.includes('crude') || q.includes('correlat')) {
+    return `📈 **Oil Price & Tank Signals**\n\nThe Daily Trend chart (scroll up) overlays WTI crude prices on per-tank fill signals. Key observations:\n\n• SAR-based fill estimates measure **physical tank levels** via radar backscatter\n• WTI prices reflect **market expectations** of supply/demand\n• Correlation is indirect — rising prices may precede drawdowns (selling stored oil), while falling prices may lead to builds (storing cheap oil)\n• Check the **Correlation** tab above for time-series and scatter-plot analysis\n\n_The relationship varies by region — Cushing (US benchmark hub) tends to show stronger price-fill correlation than overseas hubs._`;
+  }
+
+  // Which tanks changed the most
+  if (q.includes('change') || q.includes('most') || q.includes('biggest') || q.includes('moved')) {
+    const sorted = [...curated].filter(t => t.delta_vv != null).sort((a, b) => Math.abs(b.delta_vv) - Math.abs(a.delta_vv));
+    if (sorted.length === 0) return null;
+    let resp = `📉 **Biggest signal changes** — ${data.obs_date}\n\n`;
+    sorted.slice(0, 5).forEach((t, i) => {
+      const dir = t.delta_vv > 0 ? '↑' : '↓';
+      const fill = t.fill_proxy != null ? Math.round(t.fill_proxy) + '%' : 'N/A';
+      resp += `${i + 1}. **${t.tank_id}** (${t.region_code}): ${dir} ${Math.abs(t.delta_vv).toFixed(3)} dB — fill ${fill}${t.is_anomaly ? ' ⚠' : ''}\n`;
+    });
+    return resp;
+  }
+
+  // Project / architecture / methodology questions
+  if (q.includes('how') && (q.includes('work') || q.includes('system') || q.includes('built'))) {
+    return `🛰️ **How OTM Works**\n\nOTM uses **Sentinel-1 SAR** (Synthetic Aperture Radar) satellites to monitor oil storage tanks across 4 global hubs:\n\n**📡 Data Pipeline (daily)**\n1. **Stage 1** — SAR images downloaded via Google Earth Engine. C-band VV-polarized backscatter extracted per tank. Kalman filtering produces fill estimates.\n2. **Stage 2** — Market data (WTI, spreads, COT) joined with SAR features. 3 LightGBM classifiers: regime (65% acc), spread forecast, EIA surprise.\n3. **Stage 3** — Composite trading signals generated. Paper trading simulates execution.\n\n**🧠 Agent Layer**\nI'm the OTM-Agent — an LLM-orchestrated analyst that plans queries, executes skills (BigQuery, ML, compute), and synthesizes answers.\n\n**⏰ Schedule**: Pipeline runs daily 02:00–04:00 UTC on GCP Cloud Run.\n**📊 Coverage**: 10 tanks across Cushing, Rotterdam, Fujairah, Singapore.`;
+  }
+
+  if (q.includes('satellite') || q.includes('sar') || q.includes('sentinel') || q.includes('radar')) {
+    return `🛰️ **Satellite Data**\n\nWe use **Sentinel-1** — ESA's C-band SAR satellite constellation:\n\n• **Type**: Synthetic Aperture Radar (works day/night, through clouds)\n• **Band**: C-band, VV polarization\n• **Resolution**: ~10m ground resolution\n• **Revisit**: Every 6-12 days per location\n• **Source**: Downloaded via Google Earth Engine\n\n**How radar measures fill levels:**\n• Full tanks have smooth surfaces → **strong radar return** (less negative dB, e.g., -8 dB)\n• Empty/partial tanks have rough surfaces → **weak radar return** (more negative dB, e.g., -25 dB)\n• The fill_proxy (%) maps this signal to a 0-100% scale relative to each tank's own history\n\nTry the **dB ↔ Fill% explainer** above to see this relationship interactively!`;
+  }
+
+  if (q.includes('architecture') || q.includes('pipeline') || q.includes('stage') || q.includes('infrastructure')) {
+    return `🏗️ **System Architecture**\n\n**GCP Project**: oil-tank-monitoring-123\n**Region**: northamerica-northeast1\n\n**Pipeline Stages (Cloud Run Jobs):**\n• 02:00 UTC — Runner orchestrator\n• 03:00 UTC — Stage 2: SAR ingestion from Earth Engine\n• 04:00 UTC — Stage 3: Signal processing + fill estimation\n\n**Services:**\n• **otm-api-dev** — Dashboard REST API (BigQuery → JSON)\n• **otm-agent-chat** — This agent (LLM + skills)\n\n**Storage:**\n• BigQuery: otm_staging → otm_curated → otm_serving\n• 10 tanks across 4 facilities\n\n**Frontend:**\n• GitHub Pages: oguzhan-canada.github.io/otm-agent-site\n• Watchdog: GitHub Actions daily at 14:00 UTC\n\nSee the **Architecture** tab for full diagrams.`;
+  }
+
+  if (q.includes('hub') || q.includes('region') || q.includes('location') || q.includes('where') || q.includes('monitor')) {
+    return `🌍 **Monitored Hubs**\n\n• **Cushing, Oklahoma** 🇺🇸 — US benchmark hub, WTI delivery point (4 tanks: 2 north, 2 south)\n• **Rotterdam, Netherlands** 🇳🇱 — European ARA trading hub (2 tanks)\n• **Fujairah, UAE** 🇦🇪 — Middle East storage hub (2 tanks)\n• **Singapore** 🇸🇬 — Asia-Pacific trading hub (2 tanks)\n\n**10 tanks total** across 4 facilities, monitored via Sentinel-1 SAR every 6-12 days.`;
+  }
+
+  return null; // Fall through to agent API
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const query = input.value.trim();
+  if (!query) return;
+
+  input.value = '';
+  appendChatMessage('user', query);
+  scrollChatBottom();
+
+  // Hide suggestions after first user message
+  const sugContainer = document.getElementById('chat-suggestions');
+  if (sugContainer) sugContainer.style.display = 'none';
+
+  // Try local answer first
+  const localAnswer = tryLocalAnswer(query);
+  if (localAnswer) {
+    appendChatMessage('bot', localAnswer);
+    scrollChatBottom();
+    return;
+  }
+
+  // Show typing indicator
+  const typing = document.getElementById('chat-typing');
+  typing.classList.add('active');
+  scrollChatBottom();
+
+  // Try agent API
+  let responded = false;
+  for (const url of AGENT_API_URLS) {
+    try {
+      const res = await fetch(`${url}/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, session_id: chatSessionId }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        typing.classList.remove('active');
+        appendChatMessage('bot', data.response);
+        scrollChatBottom();
+        responded = true;
+        agentApiBase = url;
+        break;
+      }
+      if (res.status === 429) {
+        typing.classList.remove('active');
+        appendChatMessage('bot', "⏳ Rate limit reached — please wait a minute and try again.");
+        scrollChatBottom();
+        responded = true;
+        break;
+      }
+    } catch (e) { /* try next URL */ }
+  }
+
+  if (!responded) {
+    typing.classList.remove('active');
+    // Provide a helpful local-only fallback
+    const ctx = buildDashboardContext();
+    let fallback = "🤖 The agent API isn't available right now, but I can still help with data that's loaded on this page.\n\n";
+    fallback += "Try asking about:\n";
+    fallback += "• **Latest fill levels** at any region\n";
+    fallback += "• **Anomalies** or unusual readings\n";
+    fallback += "• **Compare regions** side by side\n";
+    fallback += "• A specific tank like **cus_ok_t01**\n";
+    fallback += "• **Which tanks changed** the most\n\n";
+    fallback += "_These work offline using live dashboard data._";
+    appendChatMessage('bot', fallback);
+    scrollChatBottom();
+  }
+}
+
+// Clear chat history button (accessible via console: clearChatHistory())
+function clearChatHistory() {
+  chatHistory = [];
+  localStorage.removeItem('otm-chat-history');
+  const msgs = document.getElementById('chat-messages');
+  if (msgs) msgs.innerHTML = '';
+  appendChatMessage('bot', "👋 Chat cleared! Ask me anything about the oil tank data.", false);
+  renderSuggestions();
+  const sugContainer = document.getElementById('chat-suggestions');
+  if (sugContainer) sugContainer.style.display = '';
+}
+
+// Init chat widget
+initChat();
 </script>
 </body>
 </html>
