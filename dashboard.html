@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Live Dashboard — OTM-Agent</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1624,7 +1627,7 @@ function buildTankAnalysis(tankId, tank, tf, data, q) {
 function buildPriceSignalAnalysis(data, curated, regions) {
   const avgs = computeDailyAverages(historyData);
   const dates = Object.keys(avgs).sort();
-  if (dates.length < 2) return null; // fall through to generic
+  if (dates.length < 2) return `📊 **Oil Price vs. Tank Signal**\n\nHistory data is still loading — please select a tank from the list above first, then ask again. The analysis needs at least 2 observation days to compute trends.`;
 
   const priceDates = Object.keys(wtiPriceCache).sort();
   let resp = `📊 **Oil Price vs. Tank Signal — Data Analysis**\n\n`;
