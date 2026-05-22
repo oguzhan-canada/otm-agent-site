@@ -543,11 +543,11 @@
     <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:.75rem;font-size:11.5px;color:var(--text3)">
       <span style="display:flex;align-items:center;gap:5px"><span style="width:20px;height:2px;background:#c47a00;display:inline-block;border-radius:2px"></span>WTI crude (USD/bbl)</span>
       <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#0066CC;display:inline-block"></span>Avg dB</span>
-      <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#0d9e75;display:inline-block"></span>Avg fill est.%</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:#0d9e75;display:inline-block"></span>Avg available capacity %</span>
     </div>
     <div class="chart-wrap-tall"><canvas id="corrChart"></canvas></div>
     <div class="note">
-      <strong>What this shows:</strong> WTI crude oil spot price (EIA public data, no weekends/holidays — typically 2–3 business day publication lag) plotted against the daily average radar signal across all 13 monitored tanks. <strong>Time series</strong> view uses dual y-axes: left = USD/bbl, right = dB. <strong>Scatter</strong> view plots price on x-axis vs. fill % on y-axis to reveal correlation directly. The Pearson coefficient (r) quantifies linear relationship: &plusmn;1 = perfect, 0 = none. A negative r between price and fill % would confirm the economic hypothesis that rising prices coincide with inventory draws. This analysis becomes more meaningful as observation days accumulate.
+      <strong>What this shows:</strong> WTI crude oil spot price (EIA public data, no weekends/holidays — typically 2–3 business day publication lag) plotted against the daily average radar signal across all 13 monitored tanks. <strong>Time series</strong> view uses dual y-axes: left = USD/bbl, right = dB. <strong>Scatter</strong> view plots price on x-axis vs. available capacity % on y-axis to reveal correlation directly. The Pearson coefficient (r) quantifies linear relationship: &plusmn;1 = perfect, 0 = none. A positive r between price and capacity would confirm the economic hypothesis that rising prices coincide with inventory draws (more empty space). This analysis becomes more meaningful as observation days accumulate.
     </div>
   </div>
 
@@ -1108,7 +1108,7 @@ function computeDailyAverages(tankHistory) {
   const result = {};
   for (const d in byDate) {
     const db = byDate[d].dbVals, pct = byDate[d].pctVals;
-    result[d] = { avgDb: db.length ? db.reduce((a,b)=>a+b,0)/db.length : null, avgPct: pct.length ? pct.reduce((a,b)=>a+b,0)/pct.length : null };
+    result[d] = { avgDb: db.length ? db.reduce((a,b)=>a+b,0)/db.length : null, avgPct: pct.length ? 100 - pct.reduce((a,b)=>a+b,0)/pct.length : null };
   }
   return result;
 }
@@ -1140,12 +1140,12 @@ function drawCorrChart(joined, pairedData) {
     corrChartObj = new Chart(document.getElementById('corrChart'), {
       type: 'scatter',
       data: { datasets: [
-        { label: 'Price vs Fill %', data: paired.map(d => ({ x: useMatched ? d.matchedPrice : d.price, y: d.avgPct })), backgroundColor: '#0d9e75', borderColor: 'rgba(13,158,117,0.4)', pointRadius: 6, pointHoverRadius: 9 },
+        { label: 'Price vs Capacity %', data: paired.map(d => ({ x: useMatched ? d.matchedPrice : d.price, y: d.avgPct })), backgroundColor: '#0d9e75', borderColor: 'rgba(13,158,117,0.4)', pointRadius: 6, pointHoverRadius: 9 },
         { label: 'Price vs dB', data: paired.map(d => ({ x: useMatched ? d.matchedPrice : d.price, y: d.avgDb })), backgroundColor: '#0066CC', borderColor: 'rgba(0,102,204,0.4)', pointRadius: 6, pointHoverRadius: 9, yAxisID: 'yDb' }
       ]},
       options: { responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: true, labels: { font: { size: 11 }, boxWidth: 8 } }, tooltip: { callbacks: { label: (ctx) => { const ds = ctx.dataset.label; return ds.includes('Fill') ? `$${ctx.parsed.x.toFixed(2)}/bbl \u2192 ${ctx.parsed.y.toFixed(1)}% fill` : `$${ctx.parsed.x.toFixed(2)}/bbl \u2192 ${ctx.parsed.y.toFixed(1)} dB`; } } } },
-        scales: { x: { title: { display: true, text: 'Crude oil price (USD/bbl)', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => '$' + v }, grid: { color: 'rgba(128,128,128,0.08)' } }, y: { position: 'left', min: 0, max: 100, title: { display: true, text: 'Average fill (%)', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(128,128,128,0.08)' } }, yDb: { position: 'right', title: { display: true, text: 'Mean VV (dB)', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { display: false } } }
+        scales: { x: { title: { display: true, text: 'Crude oil price (USD/bbl)', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => '$' + v }, grid: { color: 'rgba(128,128,128,0.08)' } }, y: { position: 'left', min: 0, max: 100, title: { display: true, text: 'Available capacity (%)', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(128,128,128,0.08)' } }, yDb: { position: 'right', title: { display: true, text: 'Mean VV (dB)', font: { size: 11 } }, ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { display: false } } }
       }
     });
   } else {
@@ -1155,11 +1155,11 @@ function drawCorrChart(joined, pairedData) {
       data: { labels, datasets: [
         { label: 'WTI crude (USD/bbl)', data: joined.map(d => d.price), borderColor: '#c47a00', backgroundColor: 'rgba(196,122,0,0.06)', tension: 0.3, pointRadius: 2, pointHoverRadius: 4, fill: true, yAxisID: 'yPrice', spanGaps: true },
         { label: 'Avg dB', data: joined.map(d => d.avgDb !== null ? parseFloat(d.avgDb.toFixed(2)) : null), borderColor: '#0066CC', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2, yAxisID: 'yDb', spanGaps: true },
-        { label: 'Avg fill est.%', data: joined.map(d => d.avgPct !== null ? parseFloat(d.avgPct.toFixed(1)) : null), borderColor: '#0d9e75', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2, yAxisID: 'yPct', spanGaps: true }
+        { label: 'Avg capacity %', data: joined.map(d => d.avgPct !== null ? parseFloat(d.avgPct.toFixed(1)) : null), borderColor: '#0d9e75', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2, yAxisID: 'yPct', spanGaps: true }
       ]},
       options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-        plugins: { legend: { display: true, labels: { font: { size: 11 }, boxWidth: 10 } }, tooltip: { callbacks: { label: (ctx) => { const v = ctx.parsed.y; if (v === null) return ctx.dataset.label + ': N/A'; if (ctx.dataset.yAxisID === 'yPrice') return `WTI: $${v.toFixed(2)}/bbl`; if (ctx.dataset.yAxisID === 'yDb') return `Avg dB: ${v.toFixed(1)} dB`; return `Avg fill: ${v.toFixed(1)}%`; } } } },
-        scales: { x: { ticks: { font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 12 }, grid: { display: false } }, yPrice: { type: 'linear', position: 'left', title: { display: true, text: 'Crude oil price (USD/bbl)', font: { size: 10 } }, ticks: { font: { size: 10 }, callback: v => '$' + v }, grid: { color: 'rgba(128,128,128,0.08)' } }, yDb: { type: 'linear', position: 'right', title: { display: true, text: 'Mean VV (dB)', font: { size: 10 } }, ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { display: false } }, yPct: { type: 'linear', position: 'right', min: 0, max: 100, title: { display: true, text: 'Avg fill %', font: { size: 10 } }, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { display: false }, display: false } }
+        plugins: { legend: { display: true, labels: { font: { size: 11 }, boxWidth: 10 } }, tooltip: { callbacks: { label: (ctx) => { const v = ctx.parsed.y; if (v === null) return ctx.dataset.label + ': N/A'; if (ctx.dataset.yAxisID === 'yPrice') return `WTI: $${v.toFixed(2)}/bbl`; if (ctx.dataset.yAxisID === 'yDb') return `Avg dB: ${v.toFixed(1)} dB`; return `Capacity: ${v.toFixed(1)}%`; } } } },
+        scales: { x: { ticks: { font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 12 }, grid: { display: false } }, yPrice: { type: 'linear', position: 'left', title: { display: true, text: 'Crude oil price (USD/bbl)', font: { size: 10 } }, ticks: { font: { size: 10 }, callback: v => '$' + v }, grid: { color: 'rgba(128,128,128,0.08)' } }, yDb: { type: 'linear', position: 'right', title: { display: true, text: 'Mean VV (dB)', font: { size: 10 } }, ticks: { font: { size: 10 }, callback: v => v.toFixed(0) + ' dB' }, grid: { display: false } }, yPct: { type: 'linear', position: 'right', min: 0, max: 100, title: { display: true, text: 'Avg capacity %', font: { size: 10 } }, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { display: false }, display: false } }
       }
     });
   }
@@ -1197,7 +1197,7 @@ async function renderCorrelation(days) {
   const rPct = pearsonR(sarWithPrice.map(d => d.matchedPrice), sarWithPrice.map(d => d.avgPct));
   const corrLabel = document.getElementById('corr-label');
   if (rDb !== null) {
-    corrLabel.textContent = `r(price,dB) = ${rDb.toFixed(3)}` + (rPct !== null ? ` | r(price,fill%) = ${rPct.toFixed(3)}` : '') + ` | ${sarWithPrice.length} paired observations`;
+    corrLabel.textContent = `r(price,dB) = ${rDb.toFixed(3)}` + (rPct !== null ? ` | r(price,capacity%) = ${rPct.toFixed(3)}` : '') + ` | ${sarWithPrice.length} paired observations`;
   } else {
     corrLabel.textContent = `${Object.keys(avgs).length} SAR days, ${priceDates.length} price days (need 3+ paired observations for correlation)`;
   }
