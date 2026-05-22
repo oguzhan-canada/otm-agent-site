@@ -30,7 +30,11 @@
   <h1>Evaluation Benchmarks</h1>
   <p class="subtitle">8 domain-specific benchmarks for evaluating commodity intelligence agents, with 5 baselines ranging from a scheduled rule-based system to an oracle with perfect foresight.</p>
 
-  <div class="section-label">Live results (loaded from JSON)</div>
+  <div class="card" style="border-left:3px solid var(--accent);margin-bottom:2rem;">
+    <p style="margin:0;"><strong>Status:</strong> Benchmark framework and runner infrastructure are built. First benchmark execution begins June 2026 — results will be published here as each benchmark completes. Metrics below will populate with real numbers once runs finish.</p>
+  </div>
+
+  <div class="section-label">Results (populates after first run)</div>
   <div class="metric-grid" id="live-metrics">
     <div class="metric">
       <div class="metric-label">Persona Divergence</div>
@@ -60,10 +64,10 @@
       <tr><th>#</th><th>Benchmark</th><th>n</th><th>Primary Metric</th><th>Status</th><th>Cadence</th></tr>
     </thead>
     <tbody>
-      <tr><td>1</td><td><strong>OTM-Persona-Align</strong></td><td id="t-persona-n">—</td><td>response_divergence_cosine</td><td><span class="badge badge-green">live</span></td><td>Weekly</td></tr>
-      <tr><td>2</td><td><strong>OTM-Skill-Retention</strong></td><td id="t-skill-n">—</td><td>pass_rate</td><td><span class="badge badge-green">live</span></td><td>Weekly</td></tr>
-      <tr><td>3</td><td><strong>OTM-Mem-Utility</strong></td><td id="t-mem-n">—</td><td>memory_utility</td><td><span class="badge badge-green">live</span></td><td>Bi-weekly</td></tr>
-      <tr><td>4</td><td><strong>OTM-OOS-Replay</strong></td><td id="t-oos-n">—</td><td>directional_accuracy</td><td><span class="badge badge-green">live</span></td><td>Monthly</td></tr>
+      <tr><td>1</td><td><strong>OTM-Persona-Align</strong></td><td id="t-persona-n">—</td><td>response_divergence_cosine</td><td><span class="status-planned">scheduled</span></td><td>Weekly</td></tr>
+      <tr><td>2</td><td><strong>OTM-Skill-Retention</strong></td><td id="t-skill-n">—</td><td>pass_rate</td><td><span class="status-planned">scheduled</span></td><td>Weekly</td></tr>
+      <tr><td>3</td><td><strong>OTM-Mem-Utility</strong></td><td id="t-mem-n">—</td><td>memory_utility</td><td><span class="status-planned">scheduled</span></td><td>Bi-weekly</td></tr>
+      <tr><td>4</td><td><strong>OTM-OOS-Replay</strong></td><td id="t-oos-n">—</td><td>directional_accuracy</td><td><span class="status-planned">scheduled</span></td><td>Monthly</td></tr>
       <tr><td>5</td><td>OTM-LongCtx</td><td>200</td><td>accuracy</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
       <tr><td>6</td><td>OTM-MultiTurn-Persona</td><td>100</td><td>persona_convergence</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
       <tr><td>7</td><td>OTM-DistShift</td><td>50</td><td>robustness_score</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
