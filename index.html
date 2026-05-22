@@ -1620,6 +1620,104 @@ function buildTankAnalysis(tankId, tank, tf, data, q) {
   return resp;
 }
 
+// Build data-driven price vs signal analysis using loaded history + WTI data
+function buildPriceSignalAnalysis(data, curated, regions) {
+  const avgs = computeDailyAverages(historyData);
+  const dates = Object.keys(avgs).sort();
+  if (dates.length < 2) return null; // fall through to generic
+
+  const priceDates = Object.keys(wtiPriceCache).sort();
+  let resp = `📊 **Oil Price vs. Tank Signal — Data Analysis**\n\n`;
+  resp += `_Based on ${dates.length} SAR observation days (${dates[0]} → ${dates[dates.length-1]})_\n\n`;
+
+  // Signal (dB) trend
+  const dbVals = dates.map(d => avgs[d].avgDb).filter(v => v !== null);
+  if (dbVals.length >= 2) {
+    const firstDb = dbVals[0], lastDb = dbVals[dbVals.length - 1];
+    const dbDelta = lastDb - firstDb;
+    const dbDir = dbDelta > 0.5 ? '📈 **strengthening** (more negative → less negative = fuller)' : dbDelta < -0.5 ? '📉 **weakening** (less negative → more negative = emptier)' : '➡️ **stable**';
+    resp += `**🛰️ Average dB Trend:**\n`;
+    resp += `• Start: ${firstDb.toFixed(2)} dB → Latest: ${lastDb.toFixed(2)} dB\n`;
+    resp += `• Change: ${dbDelta > 0 ? '+' : ''}${dbDelta.toFixed(2)} dB — ${dbDir}\n`;
+    resp += `• Range: ${Math.min(...dbVals).toFixed(2)} to ${Math.max(...dbVals).toFixed(2)} dB\n\n`;
+  }
+
+  // Capacity trend
+  const pctVals = dates.map(d => avgs[d].avgPct).filter(v => v !== null);
+  if (pctVals.length >= 2) {
+    const firstPct = pctVals[0], lastPct = pctVals[pctVals.length - 1];
+    const pctDelta = lastPct - firstPct;
+    const pctDir = pctDelta > 3 ? '📈 more empty space (draws)' : pctDelta < -3 ? '📉 less empty space (builds)' : '➡️ stable';
+    resp += `**🛢️ Average Capacity Trend:**\n`;
+    resp += `• Start: ${firstPct.toFixed(1)}% → Latest: ${lastPct.toFixed(1)}%\n`;
+    resp += `• Change: ${pctDelta > 0 ? '+' : ''}${pctDelta.toFixed(1)}% — ${pctDir}\n\n`;
+  }
+
+  // WTI price trend over same period
+  if (priceDates.length >= 2) {
+    const pricesInRange = priceDates.filter(d => d >= dates[0] && d <= dates[dates.length - 1]);
+    if (pricesInRange.length >= 2) {
+      const firstPrice = wtiPriceCache[pricesInRange[0]];
+      const lastPrice = wtiPriceCache[pricesInRange[pricesInRange.length - 1]];
+      const pDelta = lastPrice - firstPrice;
+      const pDir = pDelta > 1 ? '📈 rising' : pDelta < -1 ? '📉 falling' : '➡️ flat';
+      resp += `**💰 WTI Price Trend (same period):**\n`;
+      resp += `• $${firstPrice.toFixed(2)} → $${lastPrice.toFixed(2)}/bbl\n`;
+      resp += `• Change: ${pDelta > 0 ? '+' : ''}$${pDelta.toFixed(2)} — ${pDir}\n`;
+      resp += `• Range: $${Math.min(...pricesInRange.map(d => wtiPriceCache[d])).toFixed(2)} – $${Math.max(...pricesInRange.map(d => wtiPriceCache[d])).toFixed(2)}\n\n`;
+
+      // Compute correlation
+      const paired = [];
+      dates.forEach(d => {
+        const db = avgs[d].avgDb;
+        let price = wtiPriceCache[d];
+        if (price == null) {
+          const dt = new Date(d);
+          for (let off = 1; off <= 3 && price == null; off++) {
+            const d1 = new Date(dt); d1.setDate(d1.getDate() - off);
+            const d2 = new Date(dt); d2.setDate(d2.getDate() + off);
+            price = wtiPriceCache[d1.toISOString().slice(0,10)] || wtiPriceCache[d2.toISOString().slice(0,10)];
+          }
+        }
+        if (price != null && db != null) paired.push({ price, db, pct: avgs[d].avgPct });
+      });
+
+      if (paired.length >= 3) {
+        const rDb = pearsonR(paired.map(p => p.price), paired.map(p => p.db));
+        const rPct = pearsonR(paired.map(p => p.price), paired.map(p => p.pct));
+        resp += `**📐 Correlation (${paired.length} paired observations):**\n`;
+        resp += `• r(price, dB) = **${rDb.toFixed(3)}**`;
+        if (Math.abs(rDb) > 0.5) resp += rDb > 0 ? ' — strong positive' : ' — strong negative';
+        else if (Math.abs(rDb) > 0.2) resp += ' — weak';
+        else resp += ' — negligible';
+        resp += `\n`;
+        if (rPct !== null) {
+          resp += `• r(price, capacity%) = **${rPct.toFixed(3)}**`;
+          if (Math.abs(rPct) > 0.5) resp += rPct > 0 ? ' — prices rise with draws ✓' : ' — prices rise with builds';
+          resp += `\n`;
+        }
+        resp += `\n`;
+      }
+
+      // Interpretation
+      resp += `**🔍 Interpretation:**\n`;
+      const priceUp = pDelta > 1;
+      const dbUp = dbVals.length >= 2 && (dbVals[dbVals.length-1] - dbVals[0]) > 0.5;
+      if (priceUp && dbUp) {
+        resp += `Prices rose while radar signal strengthened (tanks filling) — suggests **strong demand** pulling both price and storage. Markets may be front-running expected supply tightness.\n`;
+      } else if (priceUp && !dbUp) {
+        resp += `Prices rose while signal weakened/stable — consistent with **inventory drawdowns**. Traders selling stored oil into a rising market.\n`;
+      } else if (!priceUp && dbUp) {
+        resp += `Prices fell/flat while signal strengthened — classic **contango storage** pattern. Cheap oil being stored for future sale.\n`;
+      } else {
+        resp += `Both price and signal weakened/flat — possible **demand destruction** or seasonal slack period. Watch for reversal signals.\n`;
+      }
+    }
+  }
+
+  return resp;
+}
+
 // Build a data-driven analytical narrative from dashboard + history data
 function buildDataAnalysis(data, curated, regions, tankFeatures) {
   const obs = data.obs_date;
@@ -1782,7 +1880,16 @@ function tryLocalAnswer(query) {
 
   // ── Analytical / conceptual questions ──
 
-  // Price-fill relationship / geopolitics / correlation (generic, no specific tank)
+  // Detect data-analysis intent: user asks about actual data, specific time periods, or metrics
+  const hasDataIntent = q.includes('last') || q.includes('recent') || q.includes('month') || q.includes('week') || q.includes('day') || q.includes('avg') || q.includes('average') || q.match(/\d+\s*(day|week|month)/) || q.includes('our data') || q.includes('the data') || q.includes('my data');
+  const hasAnalysisWord = q.includes('explain') || q.includes('analysis') || q.includes('analyz') || q.includes('relation') || q.includes('correlat') || q.includes('trend') || q.includes('pattern');
+
+  // If user asks about price/db/fill with a TIME reference or data intent → data-driven analysis
+  if (hasDataIntent && hasAnalysisWord) {
+    return buildPriceSignalAnalysis(data, curated, regions);
+  }
+
+  // Price-fill relationship / geopolitics / correlation (generic conceptual — no time reference)
   if ((q.includes('price') && q.includes('fill')) || q.includes('geopolit') || (q.includes('relation') && (q.includes('price') || q.includes('oil'))) || (q.includes('correlat') && q.includes('fill'))) {
     return `📈 **Oil Price vs. Tank Fill Levels — The Relationship**\n\n**The basics:** When oil prices **drop**, traders buy cheap crude and store it → tank fill levels **rise**. When prices **rise**, stored oil gets sold → fill levels **drop**. This is called the **contango trade** (store now, sell later at higher futures price).\n\n**How we see it:** Our SAR radar measures physical tank surfaces. Fuller tanks have smoother surfaces → stronger radar return (less negative dB). The Daily Trend chart overlays WTI crude prices on fill signals so you can spot these patterns.\n\n**Geopolitical factors that affect both:**\n• 🇸🇦 **OPEC+ production cuts** → reduced supply → prices rise, fill levels drop\n• 🇷🇺 **Sanctions/embargoes** → rerouted trade flows → Fujairah & Singapore may see unusual builds\n• 🇺🇸 **SPR releases** → Cushing fill levels spike as government barrels enter the market\n• 🌍 **Conflict/disruption** (Strait of Hormuz, Red Sea) → shipping delays → regional fill divergence\n• 📊 **EIA weekly reports** → inventory surprises cause price swings within hours\n\n**Regional dynamics:**\n• **Cushing** — most price-sensitive (WTI delivery point). Fill tracks US supply/demand tightly\n• **Rotterdam** — European Brent benchmark hub. Affected by Russian gas/oil policy\n• **Fujairah** — Middle East buffer. Fill levels respond to OPEC decisions\n• **Singapore** — Asia demand barometer. China import policy drives levels\n\n_Check the Correlation tab above for scatter-plot analysis of price vs. signal._`;
   }
