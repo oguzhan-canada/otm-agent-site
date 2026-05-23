@@ -31,7 +31,7 @@
   <p class="subtitle">8 domain-specific benchmarks for evaluating commodity intelligence agents, with 5 baselines ranging from a scheduled rule-based system to an oracle with perfect foresight.</p>
 
   <div class="card" style="border-left:3px solid var(--accent);margin-bottom:2rem;">
-    <p style="margin:0;"><strong>Status:</strong> Benchmark framework and runner infrastructure are built. First benchmark execution begins June 2026 — results will be published here as each benchmark completes. Metrics below will populate with real numbers once runs finish.</p>
+    <p style="margin:0;"><strong>Status:</strong> Benchmark framework and runners are production-ready. First benchmark (Persona-Align) execution in progress — results will appear here automatically as each benchmark completes. Metrics below populate from live JSON data files.</p>
   </div>
 
   <div class="section-label">Results (populates after first run)</div>
@@ -64,10 +64,10 @@
       <tr><th>#</th><th>Benchmark</th><th>n</th><th>Primary Metric</th><th>Status</th><th>Cadence</th></tr>
     </thead>
     <tbody>
-      <tr><td>1</td><td><strong>OTM-Persona-Align</strong></td><td id="t-persona-n">—</td><td>response_divergence_cosine</td><td><span class="status-planned">scheduled</span></td><td>Weekly</td></tr>
-      <tr><td>2</td><td><strong>OTM-Skill-Retention</strong></td><td id="t-skill-n">—</td><td>pass_rate</td><td><span class="status-planned">scheduled</span></td><td>Weekly</td></tr>
-      <tr><td>3</td><td><strong>OTM-Mem-Utility</strong></td><td id="t-mem-n">—</td><td>memory_utility</td><td><span class="status-planned">scheduled</span></td><td>Bi-weekly</td></tr>
-      <tr><td>4</td><td><strong>OTM-OOS-Replay</strong></td><td id="t-oos-n">—</td><td>directional_accuracy</td><td><span class="status-planned">scheduled</span></td><td>Monthly</td></tr>
+      <tr><td>1</td><td><strong>OTM-Persona-Align</strong></td><td id="t-persona-n">—</td><td>response_divergence_cosine</td><td><span class="status-planned" id="s-persona">scheduled</span></td><td>Weekly</td></tr>
+      <tr><td>2</td><td><strong>OTM-Skill-Retention</strong></td><td id="t-skill-n">—</td><td>top1_accuracy</td><td><span class="status-planned" id="s-skill">scheduled</span></td><td>Weekly</td></tr>
+      <tr><td>3</td><td><strong>OTM-Mem-Utility</strong></td><td id="t-mem-n">—</td><td>memory_utility</td><td><span class="status-planned" id="s-mem">scheduled</span></td><td>Bi-weekly</td></tr>
+      <tr><td>4</td><td><strong>OTM-OOS-Replay</strong></td><td id="t-oos-n">—</td><td>directional_accuracy</td><td><span class="status-planned" id="s-oos">scheduled</span></td><td>Monthly</td></tr>
       <tr><td>5</td><td>OTM-LongCtx</td><td>200</td><td>accuracy</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
       <tr><td>6</td><td>OTM-MultiTurn-Persona</td><td>100</td><td>persona_convergence</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
       <tr><td>7</td><td>OTM-DistShift</td><td>50</td><td>robustness_score</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
@@ -88,8 +88,9 @@
   <h3>OTM-Skill-Retention</h3>
   <div class="card">
     <div class="card-title">What this measures</div>
-    <p>After executing a skill, the agent is queried with retention probes at increasing delays (1, 3, 5, 10 turns later). Each skill has 1–3 canonical (query, expected_skill_sequence) pairs. Pass rate = (skill correctly invoked) / (total probes). Tracks per-skill and overall knowledge decay rate.</p>
-    <p><strong>Cadence:</strong> Weekly — lightweight, catches planner regressions early.</p>
+    <p>Tests whether the planner routes queries to the correct skill. 60 canonical probes (3 per skill, 20 skills, 7 categories) are run through the full agent. For each probe, we check whether the expected skill appears in the generated plan (top-1 and top-3 accuracy).</p>
+    <p><strong>v1.0 protocol:</strong> Single-turn skill selection. Multi-turn retention decay deferred to v0.2.</p>
+    <p><strong>Baseline:</strong> Random skill selection (1/20 = 5.0% top-1).</p>
   </div>
 
   <h3>OTM-Mem-Utility</h3>
@@ -182,7 +183,7 @@
 
 <footer>
   <span>OTM-Agent · Benchmarks</span>
-  <span>Last updated: 2026-05-21</span>
+  <span>Last updated: 2026-05-23</span>
 </footer>
 
 <script>
@@ -199,10 +200,10 @@ function toggleTheme() {
 
 async function loadBenchmarkData() {
   const benchmarks = [
-    { file: 'data/otm_persona_align.json', mId: 'm-persona', ciId: 'm-persona-ci', nId: 't-persona-n' },
-    { file: 'data/otm_skill_retention.json', mId: 'm-skill', ciId: 'm-skill-ci', nId: 't-skill-n' },
-    { file: 'data/otm_mem_utility.json', mId: 'm-mem', ciId: 'm-mem-ci', nId: 't-mem-n' },
-    { file: 'data/otm_oos_replay.json', mId: 'm-oos', ciId: 'm-oos-ci', nId: 't-oos-n' },
+    { file: 'data/otm_persona_align.json', mId: 'm-persona', ciId: 'm-persona-ci', nId: 't-persona-n', sId: 's-persona' },
+    { file: 'data/otm_skill_retention.json', mId: 'm-skill', ciId: 'm-skill-ci', nId: 't-skill-n', sId: 's-skill' },
+    { file: 'data/otm_mem_utility.json', mId: 'm-mem', ciId: 'm-mem-ci', nId: 't-mem-n', sId: 's-mem' },
+    { file: 'data/otm_oos_replay.json', mId: 'm-oos', ciId: 'm-oos-ci', nId: 't-oos-n', sId: 's-oos' },
   ];
 
   for (const b of benchmarks) {
@@ -210,26 +211,32 @@ async function loadBenchmarkData() {
       const resp = await fetch(b.file);
       if (!resp.ok) continue;
       const data = await resp.json();
+      if (data.notes && data.notes.includes('Simulated')) continue;
       const p = data.metrics.primary;
       const el = document.getElementById(b.mId);
       const ciEl = document.getElementById(b.ciId);
       const nEl = document.getElementById(b.nId);
+      const sEl = document.getElementById(b.sId);
 
       if (el) {
-        if (p.name === 'pass_rate' || p.name === 'directional_accuracy') {
+        if (p.name === 'pass_rate' || p.name === 'directional_accuracy' || p.name === 'top1_accuracy') {
           el.textContent = (p.value * 100).toFixed(1) + '%';
         } else {
           el.textContent = p.value.toFixed(3);
         }
       }
       if (ciEl) {
-        if (p.name === 'pass_rate' || p.name === 'directional_accuracy') {
+        if (p.name === 'pass_rate' || p.name === 'directional_accuracy' || p.name === 'top1_accuracy') {
           ciEl.textContent = `CI: [${(p.ci_low*100).toFixed(1)}%, ${(p.ci_high*100).toFixed(1)}%]  n=${p.n}`;
         } else {
           ciEl.textContent = `CI: [${p.ci_low.toFixed(3)}, ${p.ci_high.toFixed(3)}]  n=${p.n}`;
         }
       }
       if (nEl) nEl.textContent = p.n;
+      if (sEl) {
+        sEl.textContent = 'live';
+        sEl.className = 'status-live';
+      }
     } catch (e) {
       console.warn('Failed to load', b.file, e);
     }

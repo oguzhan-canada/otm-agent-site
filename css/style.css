@@ -373,6 +373,7 @@ footer a:hover { color: var(--text2); }
 .status-live { color: var(--green); }
 .status-pending { color: var(--amber); }
 .status-planned { color: var(--text3); }
+.status-live { color: var(--green); font-weight: 600; }
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
