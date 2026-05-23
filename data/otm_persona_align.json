@@ -1,42 +1,51 @@
 {
   "benchmark_id": "OTM-Persona-Align",
   "version": "v1.0",
-  "run_id": "2026-05-21T20:43:00.419098+00:00",
-  "completed_at": "2026-05-21T20:43:00.419098+00:00",
+  "run_id": "2026-05-23T06:06:00.844463+00:00",
+  "completed_at": "2026-05-23T06:06:00.844463+00:00",
   "agent_version": "v0.2.0-oos-clean",
-  "n_samples": 50,
+  "n_samples": 15,
   "seeds": [
     42,
     43,
-    44,
-    45,
-    46
+    44
   ],
   "metrics": {
     "primary": {
       "name": "response_divergence_cosine",
-      "value": 0.4024,
-      "ci_low": 0.3506,
-      "ci_high": 0.4569,
-      "n": 50
+      "value": 0.0892,
+      "ci_low": 0.0796,
+      "ci_high": 0.0999,
+      "n": 15
     },
     "secondary": [
       {
         "name": "skill_selection_jaccard",
-        "value": 0.9816,
-        "ci_low": 0.9725,
-        "ci_high": 0.9894
+        "value": 0.0222,
+        "ci_low": 0.0,
+        "ci_high": 0.0667
+      },
+      {
+        "name": "mean_response_length_execution",
+        "value": 1290.9
+      },
+      {
+        "name": "mean_response_length_analysis",
+        "value": 1282.9
       }
     ]
   },
   "baselines": [
     {
       "name": "fixed_neutral_mode",
-      "primary_value": 1.0061,
-      "jaccard_value": 0.8763,
-      "description": "Two neutral (50/50) runs \u2014 expected low divergence"
+      "primary_value": 0.0944,
+      "primary_ci_low": 0.0824,
+      "primary_ci_high": 0.1071,
+      "jaccard_value": 0.0,
+      "p_vs_agent": 0.8149814157783908,
+      "description": "Two neutral (midpoint) runs \u2014 measures noise floor. Persona module is working if agent divergence >> baseline."
     }
   ],
-  "notes": "Simulated agent runs with persona-conditioned skill selection.",
-  "data_filter": "All queries synthetic; no OOS data used in persona alignment test."
+  "notes": "Total agent runs: 180; Total LLM cost: $0.02; Cost caps: per-turn=$0.10, total=$80.00; Mean response length: exec=1291 chars, anal=1283 chars; Wilcoxon p=0.8150 (agent > baseline)",
+  "data_filter": "All queries synthetic; no OOS data boundary involved. Fresh agent instance per run (no memory carryover). Embedding model: text-embedding-3-small."
 }
