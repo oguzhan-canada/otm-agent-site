@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Changelog — OTM-Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .changelog-entry { margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid var(--border); }
+  .changelog-entry:last-child { border-bottom: none; }
+  .changelog-date { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text3); margin-bottom: 0.5rem; }
+  .changelog-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 3px; margin-left: 8px; }
+  .tag-benchmark { background: #0d9e7522; color: var(--teal); }
+  .tag-infra { background: #0066CC22; color: var(--accent); }
+  .tag-data { background: #cc660022; color: #cc8800; }
+  .tag-site { background: #9933cc22; color: #9933cc; }
+  .changelog-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .changelog-body { color: var(--text2); font-size: 0.95rem; line-height: 1.6; }
+  .changelog-body ul { margin-top: 0.5rem; padding-left: 1.5rem; }
+  .changelog-body li { margin-bottom: 0.3rem; }
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">OTM<span>-Agent</span></a>
+    <div class="nav-links">
+      <a href="architecture.html">Architecture</a>
+      <a href="methods.html">Methods</a>
+      <a href="benchmarks.html">Benchmarks</a>
+      <a href="about.html">About</a>
+    </div>
+    <div class="nav-right">
+      <a href="https://github.com/oguzhan-canada/otm-agent-site" style="color:var(--text3);font-size:13px">GitHub</a>
+      <button class="theme-toggle" onclick="toggleTheme()">☀/☾</button>
+    </div>
+  </div>
+</nav>
+
+<div class="page">
+  <h1>Changelog</h1>
+  <p style="color:var(--text2);margin-bottom:2rem;">Reverse-chronological log of meaningful updates to the OTM-Agent project.</p>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-23 <span class="changelog-tag tag-benchmark">benchmark</span></div>
+    <div class="changelog-title">Persona-Align benchmark — first production execution</div>
+    <div class="changelog-body">
+      <p>Ran the OTM-Persona-Align benchmark end-to-end with real agent calls (Claude Haiku executor, OpenAI embeddings). 15 queries × 3 seeds × 4 modes = 180 agent invocations.</p>
+      <ul>
+        <li>Result: NULL per pre-registered interpretation table — v0.1 in-prompt persona conditioning does not produce measurable embedding-space behavior divergence</li>
+        <li>Implication: v0.2 activation steering is the hypothesized mechanism for deeper conditioning</li>
+        <li>All results committed per protocol — no post-hoc amendments</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-22 <span class="changelog-tag tag-infra">infra</span></div>
+    <div class="changelog-title">Benchmark pipeline verified end-to-end</div>
+    <div class="changelog-body">
+      <p>Fixed embedding cache poisoning bug (hash embeddings leaking into production cache), updated model IDs to current Anthropic API, disabled re-planning for benchmarks (3.4× speedup), verified resume-from-checkpoint works.</p>
+      <ul>
+        <li>Preflight passed: all 3 checks green (embeddings differ, responses non-empty, skills produced)</li>
+        <li>Smoke test (n=2, 1 seed): 8 agent calls completed, JSON schema validated</li>
+        <li>Cost per agent call: ~$0.0001 (Haiku executor)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-21 <span class="changelog-tag tag-site">site</span></div>
+    <div class="changelog-title">Public site launched on GitHub Pages</div>
+    <div class="changelog-body">
+      <p>OTM-Agent public site deployed at <code>oguzhan-canada.github.io/otm-agent-site/</code>. Static HTML, no build tools, instant deploys via git push.</p>
+      <ul>
+        <li>6 pages: Dashboard (home), Architecture, Methods, Benchmarks, About, Paper</li>
+        <li>Live SAR dashboard with 4 hubs, 13 tanks, trend charts, AI chat assistant</li>
+        <li>Data-driven benchmark status badges (auto-flip from "scheduled" to "live")</li>
+        <li>Pipeline watchdog: GitHub Actions workflow monitors data freshness daily</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-21 <span class="changelog-tag tag-data">data</span></div>
+    <div class="changelog-title">5-week pipeline gap backfilled</div>
+    <div class="changelog-body">
+      <p>Recovered 5 weeks of missing data (Apr 14 – May 21) from Earth Engine. 344 tank rows and 132 region rows backfilled into BigQuery.</p>
+      <ul>
+        <li>Root cause: Cloud Scheduler paused during billing review</li>
+        <li>Fix: Watchdog workflow added to detect and auto-recover stale data</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-20 <span class="changelog-tag tag-benchmark">benchmark</span></div>
+    <div class="changelog-title">OOS holdout audit — 20+ leakage queries found and fixed</div>
+    <div class="changelog-body">
+      <p>Static AST analysis scan (<code>test_oos_leakage.py</code>) identified 20+ SQL queries across 12 files that lacked the holdout date filter. All fixed, retrained models from scratch.</p>
+      <ul>
+        <li>Second layer: <code>test_causal_leakage.py</code> (16 tests) ensures memory system respects <code>query_ts</code></li>
+        <li>Third layer: <code>bq_safe.py</code> runtime guard raises <code>OOSLeakageError</code></li>
+        <li>No prior model artifacts existed (hub_state_day was empty pre-audit) — audit prevented future leakage</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-19 <span class="changelog-tag tag-infra">infra</span></div>
+    <div class="changelog-title">Persona-Align protocol pre-registered</div>
+    <div class="changelog-body">
+      <p>Locked <code>PERSONA_ALIGN_PROTOCOL.md</code> — success criteria, interpretation table, reporting commitment. No post-hoc amendments permitted.</p>
+      <ul>
+        <li>Strong: > 3× baseline, p < 0.001</li>
+        <li>Moderate: 2–3× baseline, p < 0.01</li>
+        <li>Weak: 1.5–2× baseline, p < 0.05</li>
+        <li>Null: < 1.5× baseline OR p ≥ 0.05</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-18 <span class="changelog-tag tag-benchmark">benchmark</span></div>
+    <div class="changelog-title">Skill-Retention probes expanded to 60</div>
+    <div class="changelog-body">
+      <p>Extended the skill probe set from 20 to 60 (3 probes per skill, covering all 7 categories). Production runner complete with real <code>OTMAgent.run()</code> calls, top-1/top-3 accuracy, per-category breakdown.</p>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-17 <span class="changelog-tag tag-infra">infra</span></div>
+    <div class="changelog-title">OOS Replay production runner complete</div>
+    <div class="changelog-body">
+      <p>Built <code>oos_replay.py</code>: walks ~250 trading days, runs real agent calls with <code>query_ts</code> causal filter, BQ→CSV→synthetic price fallback chain, direction/confidence parsing, per-month breakdown, Sharpe calculation.</p>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-16 <span class="changelog-tag tag-infra">infra</span></div>
+    <div class="changelog-title">Paper methodology §8 drafted</div>
+    <div class="changelog-body">
+      <p>Complete evaluation section covering Persona-Align, Skill-Retention, OOS Replay, and Mem-Utility. Pre-registered criteria with <code>[X.XX]</code> placeholder convention for results not yet observed.</p>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-15 <span class="changelog-tag tag-infra">infra</span></div>
+    <div class="changelog-title">256 tests passing across 12 modules</div>
+    <div class="changelog-body">
+      <p>Full test suite green: OOS leakage (5), causal leakage (16), skill library (40+), memory system (30+), persona module (20+), reward components, and integration tests.</p>
+    </div>
+  </div>
+
+</div>
+
+<footer style="padding:2rem;text-align:center;color:var(--text3);font-size:12px;border-top:1px solid var(--border);margin-top:3rem;">
+  OTM-Agent — Research project. Paper trading only, not investment advice. Last updated: <span id="footer-date">2026-05-23</span>
+</footer>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('theme', html.dataset.theme);
+}
+(function() {
+  const saved = localStorage.getItem('theme');
+  if (saved) document.documentElement.dataset.theme = saved;
+})();
+</script>
+</body>
+</html>
