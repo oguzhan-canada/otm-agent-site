@@ -91,7 +91,8 @@
     <div class="card-title">What this measures</div>
     <p>Tests whether the planner routes queries to the correct skill. 60 canonical probes (3 per skill, 20 skills, 7 categories) are run through the full agent. For each probe, we check whether the expected skill appears anywhere in the generated plan (plan inclusion). Secondary metrics include strict positional top-1 (first step) and top-3 accuracy.</p>
     <p><strong>v1.0 protocol:</strong> Single-turn skill selection. Multi-turn retention decay deferred to v0.2.</p>
-    <p><strong>Baseline:</strong> Random chance of expected skill in a 4-step plan from 20 skills (20%).</p>
+    <p><strong>Baseline:</strong> Random chance of 1 target skill in a 3.7-step plan from 20 skills = 17.3%. Observed: 4.5&times; baseline.</p>
+    <p><strong>Protocol amendment (2026-05-23):</strong> Primary metric changed from top-1 accuracy to plan inclusion after identifying three measurement bugs. Initial run reported 23.3% top-1 (<a href="data/otm_skill_retention_v1_initial.json">initial result JSON</a>); post-fix rerun: 78.3% plan inclusion (<a href="data/otm_skill_retention.json">corrected result JSON</a>). The planner was routing correctly all along &mdash; the benchmark code had a plan-key mismatch, prerequisite-failure short-circuit, and a positional metric that penalized valid multi-step plans. See <code>SKILL_RETENTION_PROTOCOL.md</code> for full amendment.</p>
   </div>
 
   <h3>OTM-Mem-Utility</h3>

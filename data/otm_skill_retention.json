@@ -211,19 +211,27 @@
         "name": "plan_skill_summarize_to_persona",
         "value": 1.0,
         "n": 3
+      },
+      {
+        "name": "mean_plan_length",
+        "value": 3.7
+      },
+      {
+        "name": "median_plan_length",
+        "value": 4.0
       }
     ]
   },
   "baselines": [
     {
-      "name": "random_selection",
-      "primary_value": 0.05,
-      "description": "Random skill selection from 20 skills (5%)"
+      "name": "random_plan_inclusion",
+      "primary_value": 0.1729,
+      "description": "Random chance of 1 target skill appearing in a 3.7-step plan from 20 skills (17.3%)"
     },
     {
-      "name": "random_plan_inclusion",
-      "primary_value": 0.2,
-      "description": "Random chance of expected skill in 4-step plan (20%)"
+      "name": "random_top1",
+      "primary_value": 0.05,
+      "description": "Random skill as first step from 20 skills (5%)"
     }
   ],
   "notes": "Production skill-selection benchmark using real OTMAgent planner. 60 probes (3 per skill, 20 skills, 7 categories). Primary metric: plan inclusion (expected skill anywhere in plan). Single-turn protocol (v1.0); multi-turn retention decay deferred to v0.2. Total LLM cost: $0.15.",

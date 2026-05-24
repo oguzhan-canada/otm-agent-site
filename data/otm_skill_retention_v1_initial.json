@@ -1,0 +1,224 @@
+{
+  "benchmark_id": "OTM-Skill-Retention",
+  "version": "v1.0",
+  "run_id": "2026-05-23T06:57:07.920181+00:00",
+  "completed_at": "2026-05-23T06:57:07.920181+00:00",
+  "agent_version": "v0.2.0-oos-clean",
+  "n_samples": 60,
+  "seeds": [
+    42
+  ],
+  "metrics": {
+    "primary": {
+      "name": "top1_accuracy",
+      "value": 0.2333,
+      "ci_low": 0.1333,
+      "ci_high": 0.35,
+      "n": 60
+    },
+    "secondary": [
+      {
+        "name": "top3_accuracy",
+        "value": 0.3167,
+        "ci_low": 0.2,
+        "ci_high": 0.4333
+      },
+      {
+        "name": "total_probes",
+        "value": 60
+      },
+      {
+        "name": "total_agent_runs",
+        "value": 60
+      },
+      {
+        "name": "total_cost_usd",
+        "value": 0.16
+      },
+      {
+        "name": "top1_alert",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top3_alert",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_cloud_run",
+        "value": 0.5,
+        "n": 6
+      },
+      {
+        "name": "top3_cloud_run",
+        "value": 0.5,
+        "n": 6
+      },
+      {
+        "name": "top1_compute",
+        "value": 0.0,
+        "n": 15
+      },
+      {
+        "name": "top3_compute",
+        "value": 0.3333,
+        "n": 15
+      },
+      {
+        "name": "top1_llm",
+        "value": 0.0,
+        "n": 6
+      },
+      {
+        "name": "top3_llm",
+        "value": 0.0,
+        "n": 6
+      },
+      {
+        "name": "top1_ml",
+        "value": 0.0,
+        "n": 9
+      },
+      {
+        "name": "top3_ml",
+        "value": 0.0,
+        "n": 9
+      },
+      {
+        "name": "top1_query",
+        "value": 0.6111,
+        "n": 18
+      },
+      {
+        "name": "top3_query",
+        "value": 0.6111,
+        "n": 18
+      },
+      {
+        "name": "top1_trade",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top3_trade",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_alert_on_threshold",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_backtest_strategy",
+        "value": 1.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_compare_to_history",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_compose_signal",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_compute_fill_signal",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_detect_anomaly",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_estimate_volatility_regime",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_evaluate_pnl",
+        "value": 1.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_explain_decision",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_fetch_inventory_baseline",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_fetch_market_context",
+        "value": 1.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_fetch_tank_features",
+        "value": 1.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_forecast_var_spread",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_place_paper_trade",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_predict_eia_surprise",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_predict_regime",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_predict_spread_direction",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_query_goii",
+        "value": 0.6667,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_sense_tank_state",
+        "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "top1_skill_summarize_to_persona",
+        "value": 0.0,
+        "n": 3
+      }
+    ]
+  },
+  "baselines": [
+    {
+      "name": "random_selection",
+      "primary_value": 0.05,
+      "description": "Random skill selection from 20 skills (5%)"
+    },
+    {
+      "name": "random_top3",
+      "primary_value": 0.15,
+      "description": "Random top-3 hit rate from 20 skills (15%)"
+    }
+  ],
+  "notes": "Production skill-selection benchmark using real OTMAgent planner. 60 probes (3 per skill, 20 skills, 7 categories). Single-turn protocol (v1.0); multi-turn retention decay deferred to v0.2. Total LLM cost: $0.16.",
+  "data_filter": "Probes are canonical queries; no OOS data used."
+}
