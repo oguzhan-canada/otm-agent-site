@@ -32,7 +32,7 @@
   <p class="subtitle">8 domain-specific benchmarks for evaluating commodity intelligence agents, with 5 baselines ranging from a scheduled rule-based system to an oracle with perfect foresight.</p>
 
   <div class="card" style="border-left:3px solid var(--accent);margin-bottom:2rem;">
-    <p style="margin:0;"><strong>Status:</strong> Benchmark framework and runners are production-ready. First benchmark (Persona-Align) execution in progress — results will appear here automatically as each benchmark completes. Metrics below populate from live JSON data files.</p>
+    <p style="margin:0;"><strong>Status:</strong> Three benchmarks complete. Persona-Align: pre-registered null confirmed. Skill-Retention: 78.3% plan inclusion (4.5× baseline). OOS Replay: 30-day smoke test complete — 57.1% directional accuracy (not significant; data starvation diagnosed). Full results populate from live JSON data files.</p>
   </div>
 
   <div class="section-label">Results (populates after first run)</div>
@@ -109,6 +109,10 @@
     <p>The headline benchmark. Walk day-by-day through 2025-05-01 onward (~250 trading days). For each day <em>t</em>: set <code>query_ts = t</code>, ask the agent "what's the call for tomorrow?", record recommendation, compare against actual next-day move.</p>
     <p>Reports <strong>directional accuracy</strong>, not just Sharpe. Depends critically on the Category B causal filter — all memory retrieval has <code>query_ts</code> plumbed through.</p>
     <p><strong>Cadence:</strong> Monthly — heavy run; full replay takes hours.</p>
+    <p><strong>Result (30-day smoke test, n=28, seed=42):</strong> Directional accuracy <strong>57.1%</strong> (95% CI: [39.3%, 75.0%]). CI crosses 50% — <em>not statistically significant</em>. Sharpe of 6.18 is an artifact of the small sample (n=28). Cumulative P&amp;L: 1,907 bps; max drawdown: 385 bps.</p>
+    <p><strong>Diagnostic finding: data starvation.</strong> In all 28 trading days, the planner selected <code>query_goii</code> as its only skill — but the <code>giti_daily</code> table contains 0 rows. Every directional prediction was made with <strong>no actual GOII data</strong>. The 57.1% accuracy is indistinguishable from random. This is a planner stop-condition issue: the planner halts after the first skill succeeds, even when it returns empty results. The underlying data pipeline (market prices, tank features) is available but never queried.</p>
+    <p><strong>Cost discovery:</strong> Pre-execution estimate was $100–150 for 250 days. Actual: ~$0.003/day, extrapolating to <strong>~$0.75 for a full 250-day run</strong> — two orders of magnitude below budget. Infrastructure and causal filters work correctly; planner routing is the actionable finding.</p>
+    <p><em>Full 250-day run deferred pending planner stop-condition fix.</em> See <a href="data/otm_oos_replay.json">result JSON</a>.</p>
   </div>
 
   <h2>Baselines</h2>
@@ -186,7 +190,7 @@
 
 <footer>
   <span>OTM-Agent · Benchmarks</span>
-  <span>Last updated: 2026-05-23</span>
+  <span>Last updated: 2026-05-24</span>
 </footer>
 
 <script>

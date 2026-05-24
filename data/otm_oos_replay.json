@@ -1,113 +1,67 @@
 {
   "benchmark_id": "OTM-OOS-Replay",
   "version": "v1.0",
-  "run_id": "2026-05-21T20:43:08.196807+00:00",
-  "completed_at": "2026-05-21T20:43:08.196807+00:00",
+  "run_id": "2026-05-24T04:15:50.242005+00:00",
+  "completed_at": "2026-05-24T04:15:50.242005+00:00",
   "agent_version": "v0.2.0-oos-clean",
-  "n_samples": 261,
+  "n_samples": 28,
   "seeds": [
-    42,
-    43,
-    44,
-    45,
-    46
+    42
   ],
   "metrics": {
     "primary": {
       "name": "directional_accuracy",
-      "value": 0.5341,
-      "ci_low": 0.5065,
-      "ci_high": 0.5617,
-      "n": 261
+      "value": 0.5714,
+      "ci_low": 0.3929,
+      "ci_high": 0.75,
+      "n": 28
     },
     "secondary": [
       {
         "name": "sharpe_ratio",
-        "value": 1.2467
+        "value": 6.1792
       },
       {
-        "name": "cumulative_pnl",
-        "value": 814.58
+        "name": "cumulative_pnl_bps",
+        "value": 1906.98
       },
       {
-        "name": "max_drawdown",
-        "value": 2026.76
+        "name": "max_drawdown_bps",
+        "value": 385.06
       },
       {
         "name": "win_rate",
-        "value": 0.5341
+        "value": 0.5714
       },
       {
         "name": "total_trading_days",
-        "value": 261
+        "value": 28
       },
       {
-        "name": "mean_confidence_when_correct",
-        "value": 0.5715
+        "name": "mean_confidence_correct",
+        "value": 0.5312
       },
       {
-        "name": "mean_confidence_when_wrong",
-        "value": 0.5494
+        "name": "mean_confidence_wrong",
+        "value": 0.5375
+      },
+      {
+        "name": "total_agent_runs",
+        "value": 28
+      },
+      {
+        "name": "total_cost_usd",
+        "value": 0.0
       },
       {
         "name": "accuracy_2025-05",
-        "value": 0.5182,
-        "n": 110
+        "value": 0.55,
+        "n": 20
       },
       {
         "name": "accuracy_2025-06",
-        "value": 0.5429,
-        "n": 105
-      },
-      {
-        "name": "accuracy_2025-07",
-        "value": 0.4957,
-        "n": 115
-      },
-      {
-        "name": "accuracy_2025-08",
-        "value": 0.4667,
-        "n": 105
-      },
-      {
-        "name": "accuracy_2025-09",
-        "value": 0.4818,
-        "n": 110
-      },
-      {
-        "name": "accuracy_2025-10",
-        "value": 0.6174,
-        "n": 115
-      },
-      {
-        "name": "accuracy_2025-11",
-        "value": 0.57,
-        "n": 100
-      },
-      {
-        "name": "accuracy_2025-12",
-        "value": 0.5391,
-        "n": 115
-      },
-      {
-        "name": "accuracy_2026-01",
-        "value": 0.5455,
-        "n": 110
-      },
-      {
-        "name": "accuracy_2026-02",
-        "value": 0.53,
-        "n": 100
-      },
-      {
-        "name": "accuracy_2026-03",
-        "value": 0.5727,
-        "n": 110
-      },
-      {
-        "name": "accuracy_2026-04",
-        "value": 0.5273,
-        "n": 110
+        "value": 0.625,
+        "n": 8
       }
     ]
   },
@@ -120,9 +74,9 @@
     {
       "name": "majority_class",
       "primary_value": 0.529,
-      "description": "Always predict majority direction"
+      "description": "Always predict majority direction (estimated from historical WTI up-day frequency)"
     }
   ],
-  "notes": "Simulated OOS replay with causal leakage filter (query_ts) threading through all 8 memory retrieval paths. Directional accuracy is the primary metric; Sharpe is secondary.",
-  "data_filter": "OOS window: 2025-05-01 to 2026-05-01, weekdays only."
+  "notes": "OOS replay with causal leakage filter (query_ts) threading through all 8 memory retrieval paths. Price data source: BigQuery/CSV (production). Total LLM cost: $0.00. Directional accuracy is the primary metric; Sharpe is secondary.",
+  "data_filter": "OOS window: 2025-05-01 to 2026-05-01, weekdays only. Causal filter: query_ts={day} for each day."
 }
