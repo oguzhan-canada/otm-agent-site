@@ -1,8 +1,8 @@
 {
   "benchmark_id": "OTM-Skill-Retention",
   "version": "v1.0",
-  "run_id": "2026-05-24T00:08:24.600869+00:00",
-  "completed_at": "2026-05-24T00:08:24.600869+00:00",
+  "run_id": "2026-05-24T15:38:45.457833+00:00",
+  "completed_at": "2026-05-24T15:38:45.457833+00:00",
   "agent_version": "v0.2.0-oos-clean",
   "n_samples": 60,
   "seeds": [
@@ -11,24 +11,24 @@
   "metrics": {
     "primary": {
       "name": "plan_inclusion",
-      "value": 0.7833,
-      "ci_low": 0.6667,
-      "ci_high": 0.8833,
+      "value": 0.8167,
+      "ci_low": 0.7167,
+      "ci_high": 0.9167,
       "n": 60
     },
     "secondary": [
       {
         "name": "top1_accuracy",
-        "value": 0.2,
-        "ci_low": 0.1,
-        "ci_high": 0.3,
+        "value": 0.2167,
+        "ci_low": 0.1167,
+        "ci_high": 0.3167,
         "description": "Expected skill is first step in plan (strict positional)"
       },
       {
         "name": "top3_accuracy",
-        "value": 0.5167,
-        "ci_low": 0.3833,
-        "ci_high": 0.65
+        "value": 0.55,
+        "ci_low": 0.4167,
+        "ci_high": 0.6833
       },
       {
         "name": "total_probes",
@@ -40,7 +40,7 @@
       },
       {
         "name": "total_cost_usd",
-        "value": 0.15
+        "value": 0.2
       },
       {
         "name": "plan_alert",
@@ -64,7 +64,7 @@
       },
       {
         "name": "plan_compute",
-        "value": 0.8667,
+        "value": 0.9333,
         "n": 15
       },
       {
@@ -94,12 +94,12 @@
       },
       {
         "name": "plan_query",
-        "value": 0.5556,
+        "value": 0.6111,
         "n": 18
       },
       {
         "name": "top1_query",
-        "value": 0.5,
+        "value": 0.5556,
         "n": 18
       },
       {
@@ -129,7 +129,7 @@
       },
       {
         "name": "plan_skill_compose_signal",
-        "value": 0.6667,
+        "value": 1.0,
         "n": 3
       },
       {
@@ -169,7 +169,7 @@
       },
       {
         "name": "plan_skill_fetch_tank_features",
-        "value": 0.6667,
+        "value": 1.0,
         "n": 3
       },
       {
@@ -214,7 +214,7 @@
       },
       {
         "name": "mean_plan_length",
-        "value": 3.7
+        "value": 3.4
       },
       {
         "name": "median_plan_length",
@@ -225,8 +225,8 @@
   "baselines": [
     {
       "name": "random_plan_inclusion",
-      "primary_value": 0.1729,
-      "description": "Random chance of 1 target skill appearing in a 3.7-step plan from 20 skills (17.3%)"
+      "primary_value": 0.1586,
+      "description": "Random chance of 1 target skill appearing in a 3.4-step plan from 20 skills (15.9%)"
     },
     {
       "name": "random_top1",
@@ -234,6 +234,6 @@
       "description": "Random skill as first step from 20 skills (5%)"
     }
   ],
-  "notes": "Production skill-selection benchmark using real OTMAgent planner. 60 probes (3 per skill, 20 skills, 7 categories). Primary metric: plan inclusion (expected skill anywhere in plan). Single-turn protocol (v1.0); multi-turn retention decay deferred to v0.2. Total LLM cost: $0.15.",
+  "notes": "Production skill-selection benchmark using real OTMAgent planner. 60 probes (3 per skill, 20 skills, 7 categories). Primary metric: plan inclusion (expected skill anywhere in plan). Single-turn protocol (v1.0); multi-turn retention decay deferred to v0.2. Total LLM cost: $0.20.",
   "data_filter": "Probes are canonical queries; no OOS data used."
 }
