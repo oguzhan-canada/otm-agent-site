@@ -32,7 +32,7 @@
   <p class="subtitle">8 domain-specific benchmarks for evaluating commodity intelligence agents, with 5 baselines ranging from a scheduled rule-based system to an oracle with perfect foresight.</p>
 
   <div class="card" style="border-left:3px solid var(--accent);margin-bottom:2rem;">
-    <p style="margin:0;"><strong>Status (2026-05-24):</strong> All three benchmarks re-verified post-planner-fix. OOS Replay v2: 60.7% directional accuracy (30-day smoke). Persona-Align: null confirmed (p=0.23). Skill-Retention: <strong>81.7%</strong> plan inclusion (5.1&times; random baseline). Full 250-day OOS Replay in progress.</p>
+    <p style="margin:0;"><strong>Status (2026-05-24):</strong> All three benchmarks complete and re-verified post-planner-fix. OOS Replay: <strong>54.4%</strong> directional accuracy (n=237, full 250-day run). Persona-Align: null confirmed (p=0.23). Skill-Retention: <strong>81.7%</strong> plan inclusion (5.1&times; random baseline).</p>
   </div>
 
   <div class="section-label">Results (populates after first run)</div>
@@ -112,19 +112,42 @@
     <p>Reports <strong>directional accuracy</strong>, not just Sharpe. Depends critically on the Category B causal filter — all memory retrieval has <code>query_ts</code> plumbed through.</p>
     <p><strong>Cadence:</strong> Monthly — heavy run; full replay takes hours.</p>
 
-    <p><strong>Result (30-day smoke test v2, n=28, seed=42):</strong> Directional accuracy <strong>60.7%</strong> (95% CI: [42.9%, 78.6%]). CI still crosses 50% at n=28 — not yet statistically significant. Cumulative P&amp;L: 2,236 bps; max drawdown: 463 bps.</p>
-    <p><strong>Confidence calibration:</strong> Mean confidence when correct = 0.547; when wrong = 0.472. The agent is now directionally better calibrated — higher confidence on correct predictions. This was <em>not</em> true in v1 (0.531 vs 0.538).</p>
+    <p><strong>Result (full 250-day run, n=237, seed=42):</strong> Directional accuracy <strong>54.4%</strong> (95% CI: [48.1%, 60.8%]). CI crosses 50% &mdash; not statistically significant at 95% confidence. Sharpe ratio: 1.37. Cumulative P&amp;L: 6,301 bps; max drawdown: 2,623 bps. Total cost: $0.04.</p>
 
-    <p><strong>Audit trail: v1 &rarr; v2 fix cycle.</strong> The initial smoke test (v1) produced 57.1% accuracy, but diagnosis revealed every prediction was made on empty data — the planner's stop-condition aborted after the first skill returned empty results. Three bugs were identified and fixed:</p>
+    <p><strong>Per-month breakdown:</strong></p>
+    <table style="font-size:0.85em;margin:0.5rem 0;">
+      <thead><tr><th>Month</th><th>Accuracy</th><th>N</th></tr></thead>
+      <tbody>
+        <tr><td>2025-05</td><td>40.0%</td><td>20</td></tr>
+        <tr><td>2025-06</td><td>63.2%</td><td>19</td></tr>
+        <tr><td>2025-07</td><td>52.4%</td><td>21</td></tr>
+        <tr><td>2025-08</td><td>25.0%</td><td>20</td></tr>
+        <tr><td>2025-09</td><td>52.4%</td><td>21</td></tr>
+        <tr><td>2025-10</td><td>52.4%</td><td>21</td></tr>
+        <tr><td>2025-11</td><td>68.8%</td><td>16</td></tr>
+        <tr><td>2025-12</td><td>55.0%</td><td>20</td></tr>
+        <tr><td>2026-01</td><td>63.2%</td><td>19</td></tr>
+        <tr><td>2026-02</td><td>55.6%</td><td>18</td></tr>
+        <tr><td>2026-03</td><td>68.2%</td><td>22</td></tr>
+        <tr><td>2026-04</td><td>60.0%</td><td>20</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Confidence calibration:</strong> Mean confidence when correct = 0.538; when wrong = 0.539. At full scale the confidence calibration is flat &mdash; the agent does not know when it is right. The 30-day smoke showed slight calibration (0.547 vs 0.472) that did not persist at n=237.</p>
+
+    <p><strong>Interpretation.</strong> The 54.4% accuracy is above the 50% coin-flip baseline and above the 52.9% majority-class baseline, but the CI crossing 50% means we cannot reject the null hypothesis of random performance. This is consistent with pre-registered expectations: the regime classifier achieves 65.4% in-sample, but composite signal dilution from near-chance components was predicted to yield 52&ndash;58% OOS. The result falls squarely within that range.</p>
+
+    <p>Notable: accuracy varies significantly by month (25.0% in Aug 2025 to 68.8% in Nov 2025), suggesting regime-dependent performance. The agent performs better in trending markets and worse in range-bound/volatile periods &mdash; consistent with a momentum-based regime classifier.</p>
+
+    <p><strong>Audit trail: v1 &rarr; v2 fix cycle.</strong> The initial smoke test (v1) produced 57.1% accuracy, but diagnosis revealed every prediction was made on empty data. Three planner bugs were identified and fixed:</p>
     <ol>
-      <li><code>_should_stop</code> used naive substring matching — any single failure triggered any failure-related stop condition</li>
+      <li><code>_should_stop</code> used naive substring matching &mdash; any single failure triggered abort</li>
       <li><code>query_goii</code> returned SUCCESS with null data (changed to NO_DATA status)</li>
-      <li><code>_resolve_args</code> couldn't parse the planner's varied <code>$stepN.field</code> reference formats</li>
+      <li><code>_resolve_args</code> couldn't parse the planner's <code>$stepN.field</code> reference formats</li>
     </ol>
-    <p>After fixes, the agent executes 3&ndash;6 skills per day with real data retrieval (market context, tank features, inventory baselines). See <a href="data/otm_oos_replay_v1_datastarved.json">v1 result (data-starved)</a> | <a href="data/otm_oos_replay.json">v2 result (corrected)</a>.</p>
+    <p>See <a href="data/otm_oos_replay_v1_datastarved.json">v1 result (data-starved)</a> | <a href="data/otm_oos_replay.json">v2 full 250-day result</a>.</p>
 
-    <p><strong>Cost:</strong> ~$0.003/day &rarr; full 250-day run &asymp; $0.75 (200&times; under original $100&ndash;150 estimate).</p>
-    <p><em>Full 250-day run pending — decision based on whether the 60.7% signal strengthens with larger n.</em></p>
+    <p><strong>Cost:</strong> $0.04 total for 237 trading days (~$0.0002/day). 2,500&times; under original $100&ndash;150 estimate.</p>
   </div>
 
   <h2>Baselines</h2>
