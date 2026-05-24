@@ -1,8 +1,8 @@
 {
   "benchmark_id": "OTM-Skill-Retention",
   "version": "v1.0",
-  "run_id": "2026-05-23T06:57:07.920181+00:00",
-  "completed_at": "2026-05-23T06:57:07.920181+00:00",
+  "run_id": "2026-05-24T00:08:24.600869+00:00",
+  "completed_at": "2026-05-24T00:08:24.600869+00:00",
   "agent_version": "v0.2.0-oos-clean",
   "n_samples": 60,
   "seeds": [
@@ -10,18 +10,25 @@
   ],
   "metrics": {
     "primary": {
-      "name": "top1_accuracy",
-      "value": 0.2333,
-      "ci_low": 0.1333,
-      "ci_high": 0.35,
+      "name": "plan_inclusion",
+      "value": 0.7833,
+      "ci_low": 0.6667,
+      "ci_high": 0.8833,
       "n": 60
     },
     "secondary": [
       {
+        "name": "top1_accuracy",
+        "value": 0.2,
+        "ci_low": 0.1,
+        "ci_high": 0.3,
+        "description": "Expected skill is first step in plan (strict positional)"
+      },
+      {
         "name": "top3_accuracy",
-        "value": 0.3167,
-        "ci_low": 0.2,
-        "ci_high": 0.4333
+        "value": 0.5167,
+        "ci_low": 0.3833,
+        "ci_high": 0.65
       },
       {
         "name": "total_probes",
@@ -33,7 +40,12 @@
       },
       {
         "name": "total_cost_usd",
-        "value": 0.16
+        "value": 0.15
+      },
+      {
+        "name": "plan_alert",
+        "value": 1.0,
+        "n": 3
       },
       {
         "name": "top1_alert",
@@ -41,9 +53,9 @@
         "n": 3
       },
       {
-        "name": "top3_alert",
-        "value": 0.0,
-        "n": 3
+        "name": "plan_cloud_run",
+        "value": 0.5,
+        "n": 6
       },
       {
         "name": "top1_cloud_run",
@@ -51,9 +63,9 @@
         "n": 6
       },
       {
-        "name": "top3_cloud_run",
-        "value": 0.5,
-        "n": 6
+        "name": "plan_compute",
+        "value": 0.8667,
+        "n": 15
       },
       {
         "name": "top1_compute",
@@ -61,9 +73,9 @@
         "n": 15
       },
       {
-        "name": "top3_compute",
-        "value": 0.3333,
-        "n": 15
+        "name": "plan_llm",
+        "value": 1.0,
+        "n": 6
       },
       {
         "name": "top1_llm",
@@ -71,9 +83,9 @@
         "n": 6
       },
       {
-        "name": "top3_llm",
-        "value": 0.0,
-        "n": 6
+        "name": "plan_ml",
+        "value": 1.0,
+        "n": 9
       },
       {
         "name": "top1_ml",
@@ -81,19 +93,19 @@
         "n": 9
       },
       {
-        "name": "top3_ml",
-        "value": 0.0,
-        "n": 9
+        "name": "plan_query",
+        "value": 0.5556,
+        "n": 18
       },
       {
         "name": "top1_query",
-        "value": 0.6111,
+        "value": 0.5,
         "n": 18
       },
       {
-        "name": "top3_query",
-        "value": 0.6111,
-        "n": 18
+        "name": "plan_trade",
+        "value": 1.0,
+        "n": 3
       },
       {
         "name": "top1_trade",
@@ -101,108 +113,103 @@
         "n": 3
       },
       {
-        "name": "top3_trade",
-        "value": 0.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_alert_on_threshold",
-        "value": 0.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_backtest_strategy",
+        "name": "plan_skill_alert_on_threshold",
         "value": 1.0,
         "n": 3
       },
       {
-        "name": "top1_skill_compare_to_history",
-        "value": 0.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_compose_signal",
-        "value": 0.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_compute_fill_signal",
-        "value": 0.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_detect_anomaly",
-        "value": 0.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_estimate_volatility_regime",
-        "value": 0.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_evaluate_pnl",
+        "name": "plan_skill_backtest_strategy",
         "value": 1.0,
         "n": 3
       },
       {
-        "name": "top1_skill_explain_decision",
-        "value": 0.0,
+        "name": "plan_skill_compare_to_history",
+        "value": 0.3333,
         "n": 3
       },
       {
-        "name": "top1_skill_fetch_inventory_baseline",
-        "value": 0.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_fetch_market_context",
-        "value": 1.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_fetch_tank_features",
-        "value": 1.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_forecast_var_spread",
-        "value": 0.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_place_paper_trade",
-        "value": 0.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_predict_eia_surprise",
-        "value": 0.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_predict_regime",
-        "value": 0.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_predict_spread_direction",
-        "value": 0.0,
-        "n": 3
-      },
-      {
-        "name": "top1_skill_query_goii",
+        "name": "plan_skill_compose_signal",
         "value": 0.6667,
         "n": 3
       },
       {
-        "name": "top1_skill_sense_tank_state",
+        "name": "plan_skill_compute_fill_signal",
+        "value": 0.6667,
+        "n": 3
+      },
+      {
+        "name": "plan_skill_detect_anomaly",
+        "value": 1.0,
+        "n": 3
+      },
+      {
+        "name": "plan_skill_estimate_volatility_regime",
+        "value": 1.0,
+        "n": 3
+      },
+      {
+        "name": "plan_skill_evaluate_pnl",
+        "value": 0.6667,
+        "n": 3
+      },
+      {
+        "name": "plan_skill_explain_decision",
+        "value": 1.0,
+        "n": 3
+      },
+      {
+        "name": "plan_skill_fetch_inventory_baseline",
         "value": 0.0,
         "n": 3
       },
       {
-        "name": "top1_skill_summarize_to_persona",
+        "name": "plan_skill_fetch_market_context",
+        "value": 1.0,
+        "n": 3
+      },
+      {
+        "name": "plan_skill_fetch_tank_features",
+        "value": 0.6667,
+        "n": 3
+      },
+      {
+        "name": "plan_skill_forecast_var_spread",
+        "value": 1.0,
+        "n": 3
+      },
+      {
+        "name": "plan_skill_place_paper_trade",
+        "value": 1.0,
+        "n": 3
+      },
+      {
+        "name": "plan_skill_predict_eia_surprise",
+        "value": 1.0,
+        "n": 3
+      },
+      {
+        "name": "plan_skill_predict_regime",
+        "value": 1.0,
+        "n": 3
+      },
+      {
+        "name": "plan_skill_predict_spread_direction",
+        "value": 1.0,
+        "n": 3
+      },
+      {
+        "name": "plan_skill_query_goii",
+        "value": 0.6667,
+        "n": 3
+      },
+      {
+        "name": "plan_skill_sense_tank_state",
         "value": 0.0,
+        "n": 3
+      },
+      {
+        "name": "plan_skill_summarize_to_persona",
+        "value": 1.0,
         "n": 3
       }
     ]
@@ -214,11 +221,11 @@
       "description": "Random skill selection from 20 skills (5%)"
     },
     {
-      "name": "random_top3",
-      "primary_value": 0.15,
-      "description": "Random top-3 hit rate from 20 skills (15%)"
+      "name": "random_plan_inclusion",
+      "primary_value": 0.2,
+      "description": "Random chance of expected skill in 4-step plan (20%)"
     }
   ],
-  "notes": "Production skill-selection benchmark using real OTMAgent planner. 60 probes (3 per skill, 20 skills, 7 categories). Single-turn protocol (v1.0); multi-turn retention decay deferred to v0.2. Total LLM cost: $0.16.",
+  "notes": "Production skill-selection benchmark using real OTMAgent planner. 60 probes (3 per skill, 20 skills, 7 categories). Primary metric: plan inclusion (expected skill anywhere in plan). Single-turn protocol (v1.0); multi-turn retention decay deferred to v0.2. Total LLM cost: $0.15.",
   "data_filter": "Probes are canonical queries; no OOS data used."
 }
