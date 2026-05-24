@@ -66,7 +66,7 @@
     </thead>
     <tbody>
       <tr><td>1</td><td><strong>OTM-Persona-Align</strong></td><td id="t-persona-n">—</td><td>response_divergence_cosine</td><td><span class="status-planned" id="s-persona">scheduled</span></td><td>Weekly</td></tr>
-      <tr><td>2</td><td><strong>OTM-Skill-Retention</strong></td><td id="t-skill-n">—</td><td>top1_accuracy</td><td><span class="status-planned" id="s-skill">scheduled</span></td><td>Weekly</td></tr>
+      <tr><td>2</td><td><strong>OTM-Skill-Retention</strong></td><td id="t-skill-n">—</td><td>plan_inclusion</td><td><span class="status-planned" id="s-skill">scheduled</span></td><td>Weekly</td></tr>
       <tr><td>3</td><td><strong>OTM-Mem-Utility</strong></td><td id="t-mem-n">—</td><td>memory_utility</td><td><span class="status-planned" id="s-mem">scheduled</span></td><td>Bi-weekly</td></tr>
       <tr><td>4</td><td><strong>OTM-OOS-Replay</strong></td><td id="t-oos-n">—</td><td>directional_accuracy</td><td><span class="status-planned" id="s-oos">scheduled</span></td><td>Monthly</td></tr>
       <tr><td>5</td><td>OTM-LongCtx</td><td>200</td><td>accuracy</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
@@ -89,9 +89,9 @@
   <h3>OTM-Skill-Retention</h3>
   <div class="card">
     <div class="card-title">What this measures</div>
-    <p>Tests whether the planner routes queries to the correct skill. 60 canonical probes (3 per skill, 20 skills, 7 categories) are run through the full agent. For each probe, we check whether the expected skill appears in the generated plan (top-1 and top-3 accuracy).</p>
+    <p>Tests whether the planner routes queries to the correct skill. 60 canonical probes (3 per skill, 20 skills, 7 categories) are run through the full agent. For each probe, we check whether the expected skill appears anywhere in the generated plan (plan inclusion). Secondary metrics include strict positional top-1 (first step) and top-3 accuracy.</p>
     <p><strong>v1.0 protocol:</strong> Single-turn skill selection. Multi-turn retention decay deferred to v0.2.</p>
-    <p><strong>Baseline:</strong> Random skill selection (1/20 = 5.0% top-1).</p>
+    <p><strong>Baseline:</strong> Random chance of expected skill in a 4-step plan from 20 skills (20%).</p>
   </div>
 
   <h3>OTM-Mem-Utility</h3>
@@ -220,14 +220,14 @@ async function loadBenchmarkData() {
       const sEl = document.getElementById(b.sId);
 
       if (el) {
-        if (p.name === 'pass_rate' || p.name === 'directional_accuracy' || p.name === 'top1_accuracy') {
+        if (p.name === 'pass_rate' || p.name === 'directional_accuracy' || p.name === 'top1_accuracy' || p.name === 'plan_inclusion') {
           el.textContent = (p.value * 100).toFixed(1) + '%';
         } else {
           el.textContent = p.value.toFixed(3);
         }
       }
       if (ciEl) {
-        if (p.name === 'pass_rate' || p.name === 'directional_accuracy' || p.name === 'top1_accuracy') {
+        if (p.name === 'pass_rate' || p.name === 'directional_accuracy' || p.name === 'top1_accuracy' || p.name === 'plan_inclusion') {
           ciEl.textContent = `CI: [${(p.ci_low*100).toFixed(1)}%, ${(p.ci_high*100).toFixed(1)}%]  n=${p.n}`;
         } else {
           ciEl.textContent = `CI: [${p.ci_low.toFixed(3)}, ${p.ci_high.toFixed(3)}]  n=${p.n}`;
