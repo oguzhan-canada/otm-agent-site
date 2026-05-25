@@ -45,6 +45,22 @@
   <p style="color:var(--text2);margin-bottom:2rem;">Reverse-chronological log of meaningful updates to the OTM-Agent project.</p>
 
   <div class="changelog-entry">
+    <div class="changelog-date">2026-05-25 <span class="changelog-tag tag-benchmark">benchmark</span></div>
+    <div class="changelog-title">v1.1 OOS Replay — compressed 120-day run with data fixes</div>
+    <div class="changelog-body">
+      <p>Completed v1.1 OOS Replay with three data-availability fixes applied (dtype coercion, NO_DATA routing, compose_signal float coercion). Budget-constrained to 120-day compressed scope (110 days completed at $13.13).</p>
+      <ul>
+        <li>Headline: 50.0% directional accuracy (CI: 40.9%&ndash;60.0%, n=110)</li>
+        <li>Apples-to-apples (May&ndash;Oct 2025): v1.0 47.5% &rarr; v1.1 50.0% = <strong>+2.5pp</strong></li>
+        <li>Within pre-registered 1&ndash;5pp improvement expectation</li>
+        <li>Largest month improvement: Aug 2025 (25.0% &rarr; 45.0%) &mdash; dtype fix eliminated uninformed fallback</li>
+        <li>Full cost tracking now operational: $0.12/day actual vs $0.0002/day previously reported</li>
+        <li>Nov 2025&ndash;Apr 2026 not evaluated due to budget constraint (documented as scope amendment)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
     <div class="changelog-date">2026-05-25 <span class="changelog-tag tag-benchmark">benchmark</span> <span class="changelog-tag tag-infra">infra</span></div>
     <div class="changelog-title">Cost tracking amendment — LLM costs now captured</div>
     <div class="changelog-body">

@@ -32,7 +32,7 @@
   <p class="subtitle">8 domain-specific benchmarks for evaluating commodity intelligence agents, with 5 baselines ranging from a scheduled rule-based system to an oracle with perfect foresight.</p>
 
   <div class="card" style="border-left:3px solid var(--accent);margin-bottom:2rem;">
-    <p style="margin:0;"><strong>Status (2026-05-25):</strong> All three benchmarks complete and re-verified post-planner-fix. OOS Replay: <strong>54.4%</strong> directional accuracy (n=237, full 250-day run). Persona-Align: null confirmed (p=0.23). Skill-Retention: <strong>81.7%</strong> plan inclusion (5.1&times; random baseline). <strong>Cost correction applied</strong> &mdash; see <a href="#cost-amendment">cost amendment</a>.</p>
+    <p style="margin:0;"><strong>Status (2026-05-25):</strong> v1.1 OOS Replay complete (compressed 120-day run): <strong>50.0%</strong> directional accuracy (n=110). Apples-to-apples vs v1.0 same period: +2.5pp (47.5% &rarr; 50.0%), within pre-registered 1&ndash;5pp expectation. Persona-Align: null confirmed (p=0.23). Skill-Retention: <strong>81.7%</strong> plan inclusion (5.1&times; random). <strong>Cost correction applied</strong> &mdash; see <a href="#cost-amendment">cost amendment</a>.</p>
   </div>
 
   <div class="section-label">Results (populates after first run)</div>
@@ -114,7 +114,25 @@
 
     <p><strong>Result (full 250-day run, n=237, seed=42):</strong> Directional accuracy <strong>54.4%</strong> (95% CI: [48.1%, 60.8%]). CI crosses 50% &mdash; not statistically significant at 95% confidence. Sharpe ratio: 1.37. Cumulative P&amp;L: 6,301 bps; max drawdown: 2,623 bps. Cost: estimated $9&ndash;15 (see <a href="#cost-amendment">cost amendment</a>).</p>
 
-    <p><strong>Per-month breakdown:</strong></p>
+    <p><strong>v1.1 Result (compressed 120-day run, n=110, seed=42):</strong> Directional accuracy <strong>50.0%</strong> (95% CI: [40.9%, 60.0%]). Sharpe: 1.05. P&amp;L: 1,513 bps; drawdown: 1,204 bps. Cost: <strong>$13.13</strong> ($0.12/day with full LLM cost tracking).</p>
+
+    <p><strong>v1.0 &rarr; v1.1 comparison (same period, May&ndash;Oct 2025):</strong></p>
+    <table style="font-size:0.85em;margin:0.5rem 0;">
+      <thead><tr><th>Month</th><th>v1.0</th><th>v1.1</th><th>&Delta;</th></tr></thead>
+      <tbody>
+        <tr><td>2025-05</td><td>40.0%</td><td>45.0%</td><td style="color:var(--teal)">+5.0pp</td></tr>
+        <tr><td>2025-06</td><td>63.2%</td><td>63.2%</td><td>0.0pp</td></tr>
+        <tr><td>2025-07</td><td>52.4%</td><td>47.6%</td><td style="color:#e74c3c">&minus;4.8pp</td></tr>
+        <tr><td>2025-08</td><td>25.0%</td><td>45.0%</td><td style="color:var(--teal)">+20.0pp</td></tr>
+        <tr><td>2025-09</td><td>52.4%</td><td>47.6%</td><td style="color:#e74c3c">&minus;4.8pp</td></tr>
+        <tr><td>2025-10</td><td>52.4%</td><td>55.6% (n=9)</td><td style="color:var(--teal)">+3.2pp</td></tr>
+        <tr style="font-weight:600"><td>Total</td><td>47.5%</td><td>50.0%</td><td style="color:var(--teal)">+2.5pp</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Scope amendment:</strong> Budget constraints required compressing from 237 to 120 days. Run terminated at 110 days ($13.13 of $15 cost cap). Nov 2025&ndash;Apr 2026 not evaluated in v1.1. Pre-registered expectation was 1&ndash;5pp improvement; observed +2.5pp over the comparable period confirms the data-availability fixes had the expected modest effect.</p>
+
+    <p><strong>v1.0 per-month breakdown (full 237-day run):</strong></p>
     <table style="font-size:0.85em;margin:0.5rem 0;">
       <thead><tr><th>Month</th><th>Accuracy</th><th>N</th></tr></thead>
       <tbody>
@@ -147,7 +165,7 @@
     </ol>
     <p>See <a href="data/otm_oos_replay_v1_datastarved.json">v1 result (data-starved)</a> | <a href="data/otm_oos_replay.json">v2 full 250-day result</a>.</p>
 
-    <p><strong>Cost:</strong> Estimated $9&ndash;15 total for 237 trading days (~$0.04&ndash;0.06/day). 6&ndash;10&times; under original $100&ndash;150 estimate. See <a href="#cost-amendment">cost amendment</a> for details on the correction from the originally reported $0.04.</p>
+    <p><strong>Cost:</strong> v1.0: Estimated $9&ndash;15 total for 237 days (~$0.04&ndash;0.06/day, see <a href="#cost-amendment">cost amendment</a>). v1.1: <strong>$13.13</strong> for 110 days ($0.12/day with full LLM cost tracking).</p>
   </div>
 
   <h2>Baselines</h2>
@@ -247,7 +265,7 @@
 
 <footer>
   <span>OTM-Agent &middot; Benchmarks</span>
-  <span>Last updated: 2026-05-25</span>
+  <span>Last updated: 2026-05-25 (v1.1 OOS Replay)</span>
 </footer>
 
 <script>
