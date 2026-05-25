@@ -32,7 +32,7 @@
   <p class="subtitle">8 domain-specific benchmarks for evaluating commodity intelligence agents, with 5 baselines ranging from a scheduled rule-based system to an oracle with perfect foresight.</p>
 
   <div class="card" style="border-left:3px solid var(--accent);margin-bottom:2rem;">
-    <p style="margin:0;"><strong>Status (2026-05-24):</strong> All three benchmarks complete and re-verified post-planner-fix. OOS Replay: <strong>54.4%</strong> directional accuracy (n=237, full 250-day run). Persona-Align: null confirmed (p=0.23). Skill-Retention: <strong>81.7%</strong> plan inclusion (5.1&times; random baseline).</p>
+    <p style="margin:0;"><strong>Status (2026-05-25):</strong> All three benchmarks complete and re-verified post-planner-fix. OOS Replay: <strong>54.4%</strong> directional accuracy (n=237, full 250-day run). Persona-Align: null confirmed (p=0.23). Skill-Retention: <strong>81.7%</strong> plan inclusion (5.1&times; random baseline). <strong>Cost correction applied</strong> &mdash; see <a href="#cost-amendment">cost amendment</a>.</p>
   </div>
 
   <div class="section-label">Results (populates after first run)</div>
@@ -112,7 +112,7 @@
     <p>Reports <strong>directional accuracy</strong>, not just Sharpe. Depends critically on the Category B causal filter — all memory retrieval has <code>query_ts</code> plumbed through.</p>
     <p><strong>Cadence:</strong> Monthly — heavy run; full replay takes hours.</p>
 
-    <p><strong>Result (full 250-day run, n=237, seed=42):</strong> Directional accuracy <strong>54.4%</strong> (95% CI: [48.1%, 60.8%]). CI crosses 50% &mdash; not statistically significant at 95% confidence. Sharpe ratio: 1.37. Cumulative P&amp;L: 6,301 bps; max drawdown: 2,623 bps. Total cost: $0.04.</p>
+    <p><strong>Result (full 250-day run, n=237, seed=42):</strong> Directional accuracy <strong>54.4%</strong> (95% CI: [48.1%, 60.8%]). CI crosses 50% &mdash; not statistically significant at 95% confidence. Sharpe ratio: 1.37. Cumulative P&amp;L: 6,301 bps; max drawdown: 2,623 bps. Cost: estimated $9&ndash;15 (see <a href="#cost-amendment">cost amendment</a>).</p>
 
     <p><strong>Per-month breakdown:</strong></p>
     <table style="font-size:0.85em;margin:0.5rem 0;">
@@ -147,7 +147,7 @@
     </ol>
     <p>See <a href="data/otm_oos_replay_v1_datastarved.json">v1 result (data-starved)</a> | <a href="data/otm_oos_replay.json">v2 full 250-day result</a>.</p>
 
-    <p><strong>Cost:</strong> $0.04 total for 237 trading days (~$0.0002/day). 2,500&times; under original $100&ndash;150 estimate.</p>
+    <p><strong>Cost:</strong> Estimated $9&ndash;15 total for 237 trading days (~$0.04&ndash;0.06/day). 6&ndash;10&times; under original $100&ndash;150 estimate. See <a href="#cost-amendment">cost amendment</a> for details on the correction from the originally reported $0.04.</p>
   </div>
 
   <h2>Baselines</h2>
@@ -223,9 +223,31 @@
 
 </div>
 
+  <h2 id="cost-amendment">Cost Tracking Amendment (2026-05-25)</h2>
+  <div class="card" style="border-left:3px solid #e74c3c;margin-bottom:2rem;">
+    <p>All cost figures in v1.0 benchmark results captured only skill execution costs (BigQuery queries at ~$0.0001/query), not the LLM costs for plan generation, re-planning, and response synthesis. Three Anthropic API call sites were uninstrumented:</p>
+    <ol>
+      <li><code>Planner.generate_plan()</code> &mdash; Claude Sonnet call per agent turn</li>
+      <li><code>Planner.replan()</code> &mdash; 0&ndash;3 additional calls per turn on skill failure</li>
+      <li><code>Agent._llm_response()</code> &mdash; Claude Sonnet call for response generation</li>
+    </ol>
+    <p><strong>Fix:</strong> Instrumented all three call sites with token-based cost estimation using published Anthropic pricing (Sonnet: $3/$15 per M input/output tokens, Haiku: $0.80/$4). Unknown model IDs now produce a warning and fall back to Sonnet pricing.</p>
+    <p><strong>Corrected estimates:</strong></p>
+    <table style="font-size:0.85em;margin:0.5rem 0;">
+      <thead><tr><th>Benchmark</th><th>v1.0 reported (skill only)</th><th>Corrected estimate (full)</th></tr></thead>
+      <tbody>
+        <tr><td>OOS Replay (237 days)</td><td>$0.04</td><td>~$9&ndash;15</td></tr>
+        <tr><td>Persona-Align (196 runs)</td><td>$0.31</td><td>~$5&ndash;8</td></tr>
+        <tr><td>Skill-Retention (60 probes)</td><td>$0.20</td><td>~$2&ndash;4</td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>$0.55</strong></td><td><strong>~$15&ndash;25</strong></td></tr>
+      </tbody>
+    </table>
+    <p><em>Corrected total is still 6&ndash;10&times; under the $150 pre-execution budget. Actual API billing may differ slightly due to prompt caching adjustments. Underlying benchmark results (54.4% directional accuracy, 81.7% skill-inclusion, persona null) are unaffected &mdash; only cost figures changed. Calibration run with corrected tracking will refine these estimates.</em></p>
+  </div>
+
 <footer>
-  <span>OTM-Agent · Benchmarks</span>
-  <span>Last updated: 2026-05-24</span>
+  <span>OTM-Agent &middot; Benchmarks</span>
+  <span>Last updated: 2026-05-25</span>
 </footer>
 
 <script>

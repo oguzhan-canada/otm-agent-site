@@ -45,6 +45,35 @@
   <p style="color:var(--text2);margin-bottom:2rem;">Reverse-chronological log of meaningful updates to the OTM-Agent project.</p>
 
   <div class="changelog-entry">
+    <div class="changelog-date">2026-05-25 <span class="changelog-tag tag-benchmark">benchmark</span> <span class="changelog-tag tag-infra">infra</span></div>
+    <div class="changelog-title">Cost tracking amendment — LLM costs now captured</div>
+    <div class="changelog-body">
+      <p>Discovered and fixed a measurement bug: <code>record.total_cost_usd</code> captured only skill execution costs (BigQuery queries), not planner or response-generation LLM costs.</p>
+      <ul>
+        <li>Instrumented three API call sites: <code>generate_plan()</code>, <code>replan()</code>, <code>_llm_response()</code></li>
+        <li>Added model pricing table with per-token cost estimation (Sonnet $3/$15 per M, Haiku $0.80/$4)</li>
+        <li>Corrected total benchmark suite cost: ~$15&ndash;25 (was $0.55) &mdash; still 6&ndash;10&times; under $150 budget</li>
+        <li>Removed stale model ID from pricing table; added warning on unknown model fallback</li>
+        <li>Benchmark accuracy results (54.4%, 81.7%, persona null) are unaffected</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-25 <span class="changelog-tag tag-data">data</span></div>
+    <div class="changelog-title">v1.1 data-availability fixes</div>
+    <div class="changelog-body">
+      <p>Three data-availability issues identified during v1.0 provenance verification, fixed for v1.1:</p>
+      <ul>
+        <li><code>estimate_volatility_regime</code>: dtype coercion fix (string&rarr;float) + FAILURE&rarr;NO_DATA</li>
+        <li><code>compute_fill_signal</code>: insufficient-data path changed from FAILURE to NO_DATA</li>
+        <li><code>giti_daily</code>: diagnosed as missing pipeline (0 rows) &mdash; deferred to v1.2</li>
+        <li>All 15 compute_skills tests pass including new <code>test_string_coercion</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
     <div class="changelog-date">2026-05-23 <span class="changelog-tag tag-benchmark">benchmark</span></div>
     <div class="changelog-title">Persona-Align benchmark — first production execution</div>
     <div class="changelog-body">
