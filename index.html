@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v2.3.1 - 2026-05-25T11:43 chat-fix: price routing, fill labels, hub warnings, reset button -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,6 +8,16 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>Live Dashboard — OTM-Agent</title>
+<script>
+// Force cache bust: if URL has no version param or wrong version, reload with cache bypass
+(function(){
+  var V = '2.3.1';
+  if (location.search.indexOf('v=' + V) === -1 && !sessionStorage.getItem('otm-cb-' + V)) {
+    sessionStorage.setItem('otm-cb-' + V, '1');
+    location.replace(location.pathname + '?v=' + V + '&' + 't=' + Date.now() + location.hash);
+  }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -309,10 +320,16 @@
   .chat-header-title { font-size: 14px; font-weight: 600; }
   .chat-header-sub { font-size: 11px; opacity: 0.8; }
   .chat-close {
-    margin-left: auto; background: none; border: none; color: #fff;
+    background: none; border: none; color: #fff;
     font-size: 20px; cursor: pointer; opacity: 0.7; padding: 4px;
   }
   .chat-close:hover { opacity: 1; }
+  .chat-reset {
+    background: none; border: 1px solid rgba(255,255,255,0.3); color: #fff;
+    font-size: 11px; cursor: pointer; opacity: 0.7; padding: 2px 8px;
+    border-radius: 10px; margin-left: auto;
+  }
+  .chat-reset:hover { opacity: 1; background: rgba(255,255,255,0.15); }
 
   .chat-messages {
     flex: 1; overflow-y: auto; padding: 16px;
@@ -1200,7 +1217,7 @@ async function renderCorrelation(days) {
   const rPct = pearsonR(sarWithPrice.map(d => d.matchedPrice), sarWithPrice.map(d => d.avgPct));
   const corrLabel = document.getElementById('corr-label');
   if (rDb !== null) {
-    corrLabel.textContent = `r(price,dB) = ${rDb.toFixed(3)}` + (rPct !== null ? ` | r(price,capacity%) = ${rPct.toFixed(3)}` : '') + ` | ${sarWithPrice.length} paired observations`;
+    corrLabel.textContent = `r(price,dB) = ${rDb.toFixed(3)}` + (rPct !== null ? ` | r(price,fill%) = ${rPct.toFixed(3)}` : '') + ` | ${sarWithPrice.length} paired observations`;
   } else {
     corrLabel.textContent = `${Object.keys(avgs).length} SAR days, ${priceDates.length} price days (need 3+ paired observations for correlation)`;
   }
@@ -1347,6 +1364,7 @@ function schedulePoll() {
 schedulePoll();
 
 // ── Agent Chat Widget ──────────────────────────────────────
+const CHAT_VERSION = 'v2.3.1';
 const AGENT_API_URLS = [
   "https://otm-agent-chat-481921676964.northamerica-northeast1.run.app",
   "https://otm-agent-chat-zdqsboxooa-nn.a.run.app"
@@ -1354,6 +1372,11 @@ const AGENT_API_URLS = [
 let agentApiBase = AGENT_API_URLS[0];
 let chatSessionId = localStorage.getItem('otm-chat-session') || crypto.randomUUID().slice(0, 12);
 localStorage.setItem('otm-chat-session', chatSessionId);
+// Auto-clear stale chat history from older versions
+if (localStorage.getItem('otm-chat-version') !== CHAT_VERSION) {
+  localStorage.removeItem('otm-chat-history');
+  localStorage.setItem('otm-chat-version', CHAT_VERSION);
+}
 let chatHistory = JSON.parse(localStorage.getItem('otm-chat-history') || '[]');
 
 const SUGGESTED_QUESTIONS = [
@@ -1380,6 +1403,7 @@ function initChat() {
         <div class="chat-header-title">OTM Agent</div>
         <div class="chat-header-sub">AI-powered oil tank analyst</div>
       </div>
+      <button class="chat-reset" onclick="resetChat()" title="Clear chat history">🔄 Reset</button>
       <button class="chat-close" onclick="toggleChat()">&times;</button>
     </div>
     <div class="chat-messages" id="chat-messages"></div>
@@ -1413,6 +1437,20 @@ function toggleChat() {
     document.getElementById('chat-input').focus();
     scrollChatBottom();
   }
+}
+
+function resetChat() {
+  chatHistory = [];
+  localStorage.removeItem('otm-chat-history');
+  chatSessionId = crypto.randomUUID().slice(0, 12);
+  localStorage.setItem('otm-chat-session', chatSessionId);
+  const container = document.getElementById('chat-messages');
+  container.innerHTML = '';
+  appendChatMessage('bot', "👋 Hi! I'm the **OTM Agent** — I can answer questions about oil tank fill levels, anomalies, regional trends, and radar signals across all 4 monitored hubs.\n\nTry one of the suggestions below, or ask anything!", false);
+  const sugContainer = document.getElementById('chat-suggestions');
+  if (sugContainer) sugContainer.style.display = '';
+  renderSuggestions();
+  scrollChatBottom();
 }
 
 function appendChatMessage(role, text, save = true) {
@@ -1645,13 +1683,13 @@ function buildPriceSignalAnalysis(data, curated, regions) {
     resp += `• Range: ${Math.min(...dbVals).toFixed(2)} to ${Math.max(...dbVals).toFixed(2)} dB\n\n`;
   }
 
-  // Capacity trend
+  // Fill level trend
   const pctVals = dates.map(d => avgs[d].avgPct).filter(v => v !== null);
   if (pctVals.length >= 2) {
     const firstPct = pctVals[0], lastPct = pctVals[pctVals.length - 1];
     const pctDelta = lastPct - firstPct;
-    const pctDir = pctDelta > 3 ? '📈 more empty space (draws)' : pctDelta < -3 ? '📉 less empty space (builds)' : '➡️ stable';
-    resp += `**🛢️ Average Capacity Trend:**\n`;
+    const pctDir = pctDelta > 3 ? '📈 filling (builds)' : pctDelta < -3 ? '📉 emptying (draws)' : '➡️ stable';
+    resp += `**🛢️ Average Fill Level Trend:**\n`;
     resp += `• Start: ${firstPct.toFixed(1)}% → Latest: ${lastPct.toFixed(1)}%\n`;
     resp += `• Change: ${pctDelta > 0 ? '+' : ''}${pctDelta.toFixed(1)}% — ${pctDir}\n\n`;
   }
@@ -1695,8 +1733,8 @@ function buildPriceSignalAnalysis(data, curated, regions) {
         else resp += ' — negligible';
         resp += `\n`;
         if (rPct !== null) {
-          resp += `• r(price, capacity%) = **${rPct.toFixed(3)}**`;
-          if (Math.abs(rPct) > 0.5) resp += rPct > 0 ? ' — prices rise with draws ✓' : ' — prices rise with builds';
+          resp += `• r(price, fill%) = **${rPct.toFixed(3)}**`;
+          if (Math.abs(rPct) > 0.5) resp += rPct > 0 ? ' — prices rise with fills ✓' : ' — prices rise with draws';
           resp += `\n`;
         }
         resp += `\n`;
@@ -1725,14 +1763,18 @@ function buildPriceSignalAnalysis(data, curated, regions) {
 function buildDataAnalysis(data, curated, regions, tankFeatures) {
   const obs = data.obs_date;
   const anomalies = curated.filter(t => t.is_anomaly);
-  const allFills = curated.filter(t => t.fill_proxy != null).map(t => t.fill_proxy);
+  const allFills = curated.filter(t => t.fill_proxy != null && t.fill_proxy > 0).map(t => t.fill_proxy);
+  // Fallback: use vvToPct if fill_proxy is 0 or null but mean_vv exists
+  if (allFills.length === 0) {
+    curated.filter(t => t.mean_vv != null).forEach(t => allFills.push(vvToPct(t.mean_vv)));
+  }
   const avgFill = allFills.length ? Math.round(allFills.reduce((a,b) => a+b, 0) / allFills.length) : null;
 
   // Compute per-region stats
   const regionStats = {};
   regions.forEach(r => {
     regionStats[r.region_code] = {
-      avg: r.avg_fill_proxy != null ? Math.round(r.avg_fill_proxy) : null,
+      avg: r.avg_fill_proxy != null && r.avg_fill_proxy > 0 ? Math.round(r.avg_fill_proxy) : null,
       tanks: r.tank_count || 0,
     };
   });
@@ -1899,8 +1941,66 @@ function tryLocalAnswer(query) {
     return `📈 **Oil Price vs. Tank Fill Levels — The Relationship**\n\n**The basics:** When oil prices **drop**, traders buy cheap crude and store it → tank fill levels **rise**. When prices **rise**, stored oil gets sold → fill levels **drop**. This is called the **contango trade** (store now, sell later at higher futures price).\n\n**How we see it:** Our SAR radar measures physical tank surfaces. Fuller tanks have smoother surfaces → stronger radar return (less negative dB). The Daily Trend chart overlays WTI crude prices on fill signals so you can spot these patterns.\n\n**Geopolitical factors that affect both:**\n• 🇸🇦 **OPEC+ production cuts** → reduced supply → prices rise, fill levels drop\n• 🇷🇺 **Sanctions/embargoes** → rerouted trade flows → Fujairah & Singapore may see unusual builds\n• 🇺🇸 **SPR releases** → Cushing fill levels spike as government barrels enter the market\n• 🌍 **Conflict/disruption** (Strait of Hormuz, Red Sea) → shipping delays → regional fill divergence\n• 📊 **EIA weekly reports** → inventory surprises cause price swings within hours\n\n**Regional dynamics:**\n• **Cushing** — most price-sensitive (WTI delivery point). Fill tracks US supply/demand tightly\n• **Rotterdam** — European Brent benchmark hub. Affected by Russian gas/oil policy\n• **Fujairah** — Middle East buffer. Fill levels respond to OPEC decisions\n• **Singapore** — Asia demand barometer. China import policy drives levels\n\n_Check the Correlation tab above for scatter-plot analysis of price vs. signal._`;
   }
 
-  // Oil price / WTI general — try data-driven analysis first
-  if (q.includes('oil price') || q.includes('wti') || q.includes('crude price')) {
+  // Oil price / WTI general — route to simple, daily-list, or full analysis
+  if (q.includes('oil price') || q.includes('wti') || q.includes('crude price') ||
+      (q.includes('price') && !q.includes('fill') && !q.includes('correlat'))) {
+    const wantsAnalysis = q.includes('correlat') || q.includes('relation') || q.includes('signal') || q.includes('tank') || q.includes('fill') || (q.includes('analysis') || q.includes('analyz'));
+    const pDates = Object.keys(wtiPriceCache).sort();
+
+    if (!wantsAnalysis && pDates.length > 0) {
+      // Check if user asks for "last N days" or "last week/month" of prices
+      const nDaysMatch = q.match(/(?:last|past|recent)\s+(\d+)\s*(?:day|price)/);
+      let requestedDays = nDaysMatch ? parseInt(nDaysMatch[1]) : 0;
+      // Handle word-based time periods
+      if (requestedDays === 0) {
+        if (q.includes('last week') || q.includes('past week') || q.includes('this week')) requestedDays = 7;
+        else if (q.includes('last month') || q.includes('past month') || q.includes('this month')) requestedDays = 22;
+        else if (q.includes('last 2 week') || q.includes('past 2 week') || q.includes('two week')) requestedDays = 14;
+      }
+
+      if (requestedDays > 0) {
+        // Show daily price table for requested number of days
+        const showDates = pDates.slice(-requestedDays);
+        let resp = `💰 **WTI Crude Oil — Last ${showDates.length} Days**\n\n`;
+        resp += `| Date | Price | Change |\n|------|-------|--------|\n`;
+        showDates.forEach((d, i) => {
+          const p = Number(wtiPriceCache[d]);
+          let chg = '';
+          if (i > 0) {
+            const prev = Number(wtiPriceCache[showDates[i - 1]]);
+            const diff = p - prev;
+            chg = `${diff > 0 ? '↑' : diff < 0 ? '↓' : '→'} $${Math.abs(diff).toFixed(2)}`;
+          }
+          resp += `| ${d} | $${p.toFixed(2)} | ${chg} |\n`;
+        });
+        const first = Number(wtiPriceCache[showDates[0]]);
+        const last = Number(wtiPriceCache[showDates[showDates.length - 1]]);
+        const totalChg = last - first;
+        resp += `\n**Net change**: ${totalChg > 0 ? '↑' : totalChg < 0 ? '↓' : '→'} $${Math.abs(totalChg).toFixed(2)} (${totalChg > 0 ? '+' : ''}${((totalChg / first) * 100).toFixed(1)}%)`;
+        return resp;
+      }
+
+      // Simple "what's the price?" — just show latest with context
+      const latestD = pDates[pDates.length - 1];
+      const latestP = Number(wtiPriceCache[latestD]);
+      let resp = `💰 **WTI Crude Oil**: **$${latestP.toFixed(2)}/bbl** (${latestD})`;
+      if (pDates.length >= 5) {
+        const weekD = pDates[pDates.length - 5];
+        const weekP = Number(wtiPriceCache[weekD]);
+        const diff = latestP - weekP;
+        resp += `\n• ${diff > 0 ? '↑' : diff < 0 ? '↓' : '→'} $${Math.abs(diff).toFixed(2)} vs. ${weekD}`;
+      }
+      if (pDates.length >= 20) {
+        const monthD = pDates[pDates.length - 20];
+        const monthP = Number(wtiPriceCache[monthD]);
+        const diff = latestP - monthP;
+        resp += `\n• ${diff > 0 ? '↑' : diff < 0 ? '↓' : '→'} $${Math.abs(diff).toFixed(2)} vs. ${monthD}`;
+      }
+      resp += `\n\n_Ask "oil price vs fill analysis" for the full correlation breakdown, or "oil prices last 5 days" for daily data._`;
+      return resp;
+    }
+
+    // Full analysis for correlation/analytical queries
     const dataResp = buildPriceSignalAnalysis(data, curated, regions);
     if (dataResp && !dataResp.includes('still loading')) return dataResp;
     return `📈 **Oil Price & Tank Signals**\n\nThe Daily Trend chart overlays WTI crude prices on per-tank fill signals.\n\n**Key dynamics:**\n• **Rising prices** → traders sell stored oil → fill levels tend to drop\n• **Falling prices** → traders buy & store cheap oil → fill levels tend to rise (contango)\n• **Flat prices** → inventory builds/draws follow seasonal patterns & refinery demand\n\n**What our data shows:**\n• SAR-based fill estimates measure **physical tank levels** via radar backscatter\n• WTI prices reflect **market expectations** of supply/demand\n• Cushing (US benchmark hub) shows the strongest price-fill correlation\n• Overseas hubs (Rotterdam, Fujairah, Singapore) respond more to regional factors\n\n_Check the **Correlation** tab above for time-series and scatter-plot analysis._`;
@@ -1924,13 +2024,17 @@ function tryLocalAnswer(query) {
       const regionKey = q.includes('cushing') ? 'cushing' : q.includes('rotterdam') ? 'rotterdam' : q.includes('fujairah') ? 'fujairah' : 'singapore';
       const rData = regions.find(r => r.region_code === regionKey);
       const rTanks = curated.filter(t => t.region_code === regionKey);
+      if (!rData && rTanks.length === 0) {
+        return `⚠️ **No data available for ${regionKey.charAt(0).toUpperCase() + regionKey.slice(1)}** as of ${data.obs_date}.\n\nThis hub's data may not be included in the current API snapshot. The system monitors 4 hubs (Cushing, Rotterdam, Fujairah, Singapore) but data availability depends on satellite pass scheduling and API coverage.\n\n_Try refreshing the dashboard or check back later._`;
+      }
       if (rData) {
+        const fillDisplay = (rData.avg_fill_proxy != null && rData.avg_fill_proxy > 0) ? Math.round(rData.avg_fill_proxy) + '%' : 'N/A (no fill data)';
         let resp = `📊 **${regionKey.charAt(0).toUpperCase() + regionKey.slice(1)}** as of ${data.obs_date}:\n\n`;
-        resp += `• Average fill: **${rData.avg_fill_proxy != null ? Math.round(rData.avg_fill_proxy) + '%' : 'N/A'}**\n`;
-        resp += `• Range: ${rData.min_fill_proxy != null ? Math.round(rData.min_fill_proxy) : '?'}% – ${rData.max_fill_proxy != null ? Math.round(rData.max_fill_proxy) : '?'}%\n`;
+        resp += `• Average fill: **${fillDisplay}**\n`;
+        resp += `• Range: ${rData.min_fill_proxy != null && rData.min_fill_proxy > 0 ? Math.round(rData.min_fill_proxy) : '?'}% – ${rData.max_fill_proxy != null && rData.max_fill_proxy > 0 ? Math.round(rData.max_fill_proxy) : '?'}%\n`;
         resp += `• Tanks: ${rData.tank_count || rTanks.length}\n\n`;
         rTanks.forEach(t => {
-          const fill = t.fill_proxy != null ? Math.round(t.fill_proxy) + '%' : 'N/A';
+          const fill = (t.fill_proxy != null && t.fill_proxy > 0) ? Math.round(t.fill_proxy) + '%' : (t.mean_vv != null ? Math.round(vvToPct(t.mean_vv)) + '% (from radar)' : 'N/A');
           const flag = t.is_anomaly ? ' ⚠' : '';
           resp += `  **${t.tank_id}**: ${fill}${flag}\n`;
         });
@@ -1938,12 +2042,18 @@ function tryLocalAnswer(query) {
       }
     }
     // General status
+    const expectedHubs = ['cushing', 'rotterdam', 'fujairah', 'singapore'];
+    const presentHubs = regions.map(r => r.region_code);
+    const missingHubs = expectedHubs.filter(h => !presentHubs.includes(h));
     let resp = `📊 **Dashboard Summary** — ${data.obs_date}\n\n`;
     resp += `${curated.length} tanks across ${regions.length} hubs:\n\n`;
     regions.forEach(r => {
-      const fill = r.avg_fill_proxy != null ? Math.round(r.avg_fill_proxy) + '%' : 'N/A';
-      resp += `• **${r.region_code}**: avg fill ${fill} (${r.tank_count} tanks)\n`;
+      const fillVal = r.avg_fill_proxy != null && r.avg_fill_proxy > 0 ? Math.round(r.avg_fill_proxy) + '%' : 'N/A';
+      resp += `• **${r.region_code}**: avg fill ${fillVal} (${r.tank_count} tanks)\n`;
     });
+    if (missingHubs.length > 0) {
+      resp += `\n⚠️ **Missing hubs**: ${missingHubs.map(h => h.charAt(0).toUpperCase() + h.slice(1)).join(', ')} — data not available in current snapshot\n`;
+    }
     const anomalies = curated.filter(t => t.is_anomaly);
     if (anomalies.length > 0) {
       resp += `\n⚠ **${anomalies.length} anomalies**: ${anomalies.map(t => t.tank_id).join(', ')}`;
