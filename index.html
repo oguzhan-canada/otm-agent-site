@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v2.4.0 - 2026-05-25 chat-fix: per-tank correlation ranking, price routing, fill labels, hub warnings, reset button -->
+<!-- v2.4.1 - 2026-05-25 chat-fix: context-aware follow-ups, cushing hub label -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Force cache bust: if URL has no version param or wrong version, reload with cache bypass
 (function(){
-  var V = '2.4.0';
+  var V = '2.4.1';
   if (location.search.indexOf('v=' + V) === -1 && !sessionStorage.getItem('otm-cb-' + V)) {
     sessionStorage.setItem('otm-cb-' + V, '1');
     location.replace(location.pathname + '?v=' + V + '&' + 't=' + Date.now() + location.hash);
@@ -1364,7 +1364,7 @@ function schedulePoll() {
 schedulePoll();
 
 // ── Agent Chat Widget ──────────────────────────────────────
-const CHAT_VERSION = 'v2.4.0';
+const CHAT_VERSION = 'v2.4.1';
 const AGENT_API_URLS = [
   "https://otm-agent-chat-481921676964.northamerica-northeast1.run.app",
   "https://otm-agent-chat-zdqsboxooa-nn.a.run.app"
