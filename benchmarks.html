@@ -87,6 +87,7 @@
     <p><strong>Result: Pre-registered NULL confirmed.</strong> Persona divergence ratio 1.003&times; baseline (p=0.23, Wilcoxon). Two persona-conditioned responses are no more different from each other than two neutral-neutral runs. Skill selection Jaccard &asymp; 0.10 (agent) vs 0.11 (baseline) — effectively identical. Our pre-registered protocol predicted this as the most likely v0.1 outcome: in-prompt persona injection does not cause the LLM to condition on a 64-d float vector. v0.2 activation steering (residual-stream injection) is the hypothesized mechanism for deeper conditioning.</p>
     <p><strong>Re-verification (2026-05-24):</strong> After fixing the planner stop-condition bug, the persona benchmark was re-run with the corrected planner (49 queries &times; 4 persona modes = 196 agent runs). Both persona modes now execute multi-step plans (2-5 steps with real BQ data retrieval), eliminating the earlier confound of structurally identical minimal executions. <strong>The null result holds.</strong> This confirms the finding is genuine — the persona module's effect on planner behavior is not detectable through embedding-space cosine divergence at v0.1's in-prompt injection point. The issue is architectural, not a measurement artifact.</p>
     <p><strong>v1.1 Re-run (2026-05-25):</strong> Re-ran with data fixes (NO_DATA routing, dtype coercion) and corrected cost tracking. Result: <strong>null confirmed</strong> &mdash; divergence ratio 1.001&times; baseline (p=0.70, Wilcoxon). 196 agent runs, n=49 comparisons. Skill Jaccard: 0.047 (agent) vs 0.040 (baseline). Cost with full tracking: <strong>$1.77</strong> (vs v1.0 reported $0.31 skill-only = 5.7&times; correction). Data fixes do not alter the persona null finding. <a href="data/otm_persona_align_v11.json">v1.1 result JSON</a>.</p>
+    <p style="font-size:0.85em;color:var(--text2);"><strong>Note on n=49:</strong> The benchmark runs 49 distinct queries &times; 4 persona modes (2 anchored + 2 neutral baseline) = 196 total agent runs. Divergence is computed per query pair, yielding n=49 paired comparisons for the Wilcoxon test. The description above references &ldquo;100 queries&rdquo; as the design target; actual implementation uses 49 unique queries from the domain probe set.</p>
   </div>
 
   <h3>OTM-Skill-Retention</h3>
@@ -116,7 +117,11 @@
 
     <p><strong>Result (full 250-day run, n=237, seed=42):</strong> Directional accuracy <strong>54.4%</strong> (95% CI: [48.1%, 60.8%]). CI crosses 50% &mdash; not statistically significant at 95% confidence. Sharpe ratio: 1.37. Cumulative P&amp;L: 6,301 bps; max drawdown: 2,623 bps. Cost: estimated $9&ndash;15 (see <a href="#cost-amendment">cost amendment</a>).</p>
 
-    <p><strong>v1.1 Result (compressed 120-day run, n=110, seed=42):</strong> Directional accuracy <strong>50.0%</strong> (95% CI: [40.9%, 60.0%]). Sharpe: 1.05. P&amp;L: 1,513 bps; drawdown: 1,204 bps. Cost: <strong>$13.13</strong> ($0.12/day with full LLM cost tracking).</p>
+    <p><strong>v1.1 Result (compressed run, n=110, seed=42):</strong> Directional accuracy <strong>50.0%</strong> (95% CI: [40.9%, 60.0%]). Sharpe: 1.05. P&amp;L: 1,513 bps; drawdown: 1,204 bps. Cost: <strong>$13.13</strong> ($0.12/day with full LLM cost tracking). Sample size reduced from 237 to 110 days due to API budget constraint ($0.12/day &times; 237 days &asymp; $28, exceeding available budget); full 250-day re-run deferred to v1.2.</p>
+
+    <div class="card" style="border-left:3px solid var(--teal);margin:1rem 0;">
+      <p style="margin:0;"><strong>Same-window comparison (May&ndash;Oct 2025, n=110):</strong> v1.0 accuracy on these same 110 trading days was <strong>47.5%</strong>; v1.1 accuracy was <strong>50.0%</strong> &mdash; a <strong>+2.5pp improvement</strong>, within the pre-registered 1&ndash;5pp expectation. The headline v1.0 figure (54.4%) covers the full 237-day window including Nov&ndash;Apr months not evaluated in v1.1.</p>
+    </div>
 
     <p><strong>v1.0 &rarr; v1.1 comparison (same period, May&ndash;Oct 2025):</strong></p>
     <table style="font-size:0.85em;margin:0.5rem 0;">
@@ -256,7 +261,7 @@
     <table style="font-size:0.85em;margin:0.5rem 0;">
       <thead><tr><th>Benchmark</th><th>v1.0 reported (skill only)</th><th>Corrected estimate (full)</th></tr></thead>
       <tbody>
-        <tr><td>OOS Replay (237 days)</td><td>$0.04</td><td>~$9&ndash;15</td></tr>
+        <tr><td>OOS Replay (110 days v1.1)</td><td>$0.04</td><td>$13.13 (v1.1 measured)</td></tr>
         <tr><td>Persona-Align (196 runs)</td><td>$0.31</td><td>$1.77 (v1.1 measured)</td></tr>
         <tr><td>Skill-Retention (60 probes)</td><td>$0.20</td><td>$1.65 (v1.1 measured)</td></tr>
         <tr><td><strong>Total</strong></td><td><strong>$0.55</strong></td><td><strong>$16.55 (v1.1 measured)</strong></td></tr>
