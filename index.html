@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v2.3.1 - 2026-05-25T11:43 chat-fix: price routing, fill labels, hub warnings, reset button -->
+<!-- v2.4.0 - 2026-05-25 chat-fix: per-tank correlation ranking, price routing, fill labels, hub warnings, reset button -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Force cache bust: if URL has no version param or wrong version, reload with cache bypass
 (function(){
-  var V = '2.3.1';
+  var V = '2.4.0';
   if (location.search.indexOf('v=' + V) === -1 && !sessionStorage.getItem('otm-cb-' + V)) {
     sessionStorage.setItem('otm-cb-' + V, '1');
     location.replace(location.pathname + '?v=' + V + '&' + 't=' + Date.now() + location.hash);
@@ -1364,7 +1364,7 @@ function schedulePoll() {
 schedulePoll();
 
 // ── Agent Chat Widget ──────────────────────────────────────
-const CHAT_VERSION = 'v2.3.1';
+const CHAT_VERSION = 'v2.4.0';
 const AGENT_API_URLS = [
   "https://otm-agent-chat-481921676964.northamerica-northeast1.run.app",
   "https://otm-agent-chat-zdqsboxooa-nn.a.run.app"
@@ -1759,6 +1759,60 @@ function buildPriceSignalAnalysis(data, curated, regions) {
   return resp;
 }
 
+// Per-tank price correlation ranking
+function buildPerTankCorrelation(curated, data) {
+  const tankIds = Object.keys(historyData);
+  if (tankIds.length === 0) return `📊 **Per-Tank Correlation**\n\nHistory data is still loading — please select a tank from the list above first, then ask again.`;
+  const priceDates = Object.keys(wtiPriceCache).sort();
+  if (priceDates.length < 5) return `📊 **Per-Tank Correlation**\n\nPrice data is still loading — please wait a moment and try again.`;
+
+  const results = [];
+  tankIds.forEach(tid => {
+    const h = historyData[tid];
+    if (!h || h.length < 3) return;
+    const paired = [];
+    h.forEach(obs => {
+      const d = obs.obs_date;
+      const db = obs.mean_vv;
+      if (db == null) return;
+      let price = wtiPriceCache[d];
+      if (price == null) {
+        const dt = new Date(d);
+        for (let off = 1; off <= 3 && price == null; off++) {
+          const d1 = new Date(dt); d1.setDate(d1.getDate() - off);
+          const d2 = new Date(dt); d2.setDate(d2.getDate() + off);
+          price = wtiPriceCache[d1.toISOString().slice(0,10)] || wtiPriceCache[d2.toISOString().slice(0,10)];
+        }
+      }
+      if (price != null) paired.push({ price: Number(price), db });
+    });
+    if (paired.length >= 3) {
+      const r = pearsonR(paired.map(p => p.price), paired.map(p => p.db));
+      if (r !== null) {
+        const tank = curated.find(t => t.tank_id === tid);
+        results.push({ tid, r, absR: Math.abs(r), n: paired.length, region: tank ? tank.region_code : 'unknown' });
+      }
+    }
+  });
+
+  if (results.length === 0) return `📊 Not enough paired price-signal data to compute per-tank correlations. Try loading more tank histories first.`;
+
+  results.sort((a, b) => b.absR - a.absR);
+  const top = results[0];
+  let resp = `📊 **Per-Tank Price Correlation Ranking**\n\n`;
+  resp += `_Pearson r(WTI price, radar dB) per tank — higher |r| = stronger relationship_\n\n`;
+  resp += `| Rank | Tank | Hub | r | Strength | n |\n|------|------|-----|---|----------|---|\n`;
+  results.forEach((t, i) => {
+    const strength = t.absR > 0.5 ? '🟢 Strong' : t.absR > 0.2 ? '🟡 Weak' : '⚪ Negligible';
+    resp += `| ${i + 1} | ${t.tid} | ${t.region} | ${t.r > 0 ? '+' : ''}${t.r.toFixed(3)} | ${strength} | ${t.n} |\n`;
+  });
+  resp += `\n🏆 **Most correlated**: **${top.tid}** (${top.region}) with r = ${top.r > 0 ? '+' : ''}${top.r.toFixed(3)} over ${top.n} observations`;
+  if (top.absR < 0.2) {
+    resp += `\n\n_⚠️ Note: Even the strongest correlation is negligible (|r| < 0.2). SAR radar signals at these hubs show very weak price sensitivity at the individual tank level._`;
+  }
+  return resp;
+}
+
 // Build a data-driven analytical narrative from dashboard + history data
 function buildDataAnalysis(data, curated, regions, tankFeatures) {
   const obs = data.obs_date;
@@ -1931,7 +1985,20 @@ function tryLocalAnswer(query) {
 
   // If user asks about price/db/fill with a TIME reference or data intent → data-driven analysis
   if (hasDataIntent && hasAnalysisWord) {
+    // If asking "which tank" with correlation → per-tank correlation ranking
+    if ((q.includes('which') || q.includes('most') || q.includes('rank') || q.includes('best')) &&
+        (q.includes('tank') || q.includes('hub')) &&
+        (q.includes('correlat') || q.includes('corralat') || q.includes('price'))) {
+      return buildPerTankCorrelation(curated, data);
+    }
     return buildPriceSignalAnalysis(data, curated, regions);
+  }
+
+  // Per-tank correlation question (which tank correlates most with price)
+  if ((q.includes('which') || q.includes('most') || q.includes('rank')) &&
+      (q.includes('tank') || q.includes('hub')) &&
+      (q.includes('correlat') || q.includes('corralat') || q.includes('price'))) {
+    return buildPerTankCorrelation(curated, data);
   }
 
   // Price-fill relationship / correlation — always try data-driven analysis first
