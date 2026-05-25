@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v2.3.0 - 2026-05-25 chat-fix: price routing, fill labels, hub warnings -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1910,9 +1911,15 @@ function tryLocalAnswer(query) {
     const pDates = Object.keys(wtiPriceCache).sort();
 
     if (!wantsAnalysis && pDates.length > 0) {
-      // Check if user asks for "last N days" of prices
+      // Check if user asks for "last N days" or "last week/month" of prices
       const nDaysMatch = q.match(/(?:last|past|recent)\s+(\d+)\s*(?:day|price)/);
-      const requestedDays = nDaysMatch ? parseInt(nDaysMatch[1]) : 0;
+      let requestedDays = nDaysMatch ? parseInt(nDaysMatch[1]) : 0;
+      // Handle word-based time periods
+      if (requestedDays === 0) {
+        if (q.includes('last week') || q.includes('past week') || q.includes('this week')) requestedDays = 7;
+        else if (q.includes('last month') || q.includes('past month') || q.includes('this month')) requestedDays = 22;
+        else if (q.includes('last 2 week') || q.includes('past 2 week') || q.includes('two week')) requestedDays = 14;
+      }
 
       if (requestedDays > 0) {
         // Show daily price table for requested number of days

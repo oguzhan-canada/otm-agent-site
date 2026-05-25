@@ -32,6 +32,12 @@ jobs:
         run: |
           if [ -d data ]; then
             for f in data/*.json; do
+              # Skip non-benchmark files
+              basename=$(basename "$f")
+              if [[ "$basename" == "watchdog_log.json" ]] || [[ "$basename" == *"_log"* ]]; then
+                echo "Skipping non-benchmark file: $f"
+                continue
+              fi
               echo "Validating $f..."
               python3 -c "
           import json, sys
