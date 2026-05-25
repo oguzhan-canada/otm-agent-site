@@ -1381,10 +1381,10 @@ let chatHistory = JSON.parse(localStorage.getItem('otm-chat-history') || '[]');
 
 const SUGGESTED_QUESTIONS = [
   "What's the latest fill at Cushing?",
-  "Any anomalies this week?",
-  "How does this system work?",
-  "Compare Rotterdam vs Fujairah",
-  "Which tanks show the most change?"
+  "How is WTI price correlated with tank capacity?",
+  "What does available capacity measure?",
+  "How was the agent evaluated?",
+  "What does OTM-Agent do?"
 ];
 
 function initChat() {
@@ -1407,7 +1407,11 @@ function initChat() {
       <button class="chat-close" onclick="toggleChat()">&times;</button>
     </div>
     <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-banner" id="chat-banner" style="font-size:11px;font-style:italic;color:#888;padding:6px 12px;border-bottom:1px solid #333;text-align:center;">
+      Conversational mode — live agent responses. For evaluated results, see <a href="benchmarks.html" style="color:#4d9fff;">Benchmarks</a>.
+    </div>
     <div class="chat-typing" id="chat-typing"><span></span><span></span><span></span></div>
+    <div class="chat-typing-status" id="chat-typing-status" style="display:none;font-size:11px;color:#888;padding:0 16px 4px;font-style:italic;"></div>
     <div class="chat-suggestions" id="chat-suggestions"></div>
     <div class="chat-input-area">
       <input class="chat-input" id="chat-input" type="text"
@@ -2250,16 +2254,37 @@ async function sendChat() {
     pDates.forEach(d => { recentPrices[d] = wtiPriceCache[d]; });
   }
 
-  // Build conversation history from chat (last 6 messages)
-  const convHistory = chatHistory.slice(-6).map(m => ({
-    role: m.role === 'user' ? 'user' : 'assistant',
-    content: m.content,
-  }));
+  // Build conversation history from chat (token-capped ~3000 tokens)
+  const convHistory = [];
+  let tokenBudget = 3000;
+  for (let i = chatHistory.length - 1; i >= 0 && tokenBudget > 0; i--) {
+    const m = chatHistory[i];
+    const est = Math.ceil((m.content || '').length / 4); // ~4 chars per token
+    if (est > tokenBudget) break;
+    tokenBudget -= est;
+    convHistory.unshift({
+      role: m.role === 'user' ? 'user' : 'assistant',
+      content: m.content.slice(0, 2000), // hard cap per message
+    });
+  }
 
-  // Show typing indicator
+  // Show typing indicator with progress updates
   const typing = document.getElementById('chat-typing');
+  const typingStatus = document.getElementById('chat-typing-status');
   typing.classList.add('active');
+  if (typingStatus) { typingStatus.style.display = 'block'; typingStatus.textContent = 'Thinking...'; }
   scrollChatBottom();
+
+  // Progress timer: update status text as time passes
+  const tStart = Date.now();
+  const progressTimer = setInterval(() => {
+    const elapsed = (Date.now() - tStart) / 1000;
+    if (typingStatus) {
+      if (elapsed > 60) typingStatus.textContent = 'This is taking longer than usual — complex query...';
+      else if (elapsed > 30) typingStatus.textContent = 'Still working — agent is fetching data...';
+      else if (elapsed > 10) typingStatus.textContent = 'Analyzing your question...';
+    }
+  }, 5000);
 
   // Try agent API FIRST
   let responded = false;
@@ -2277,11 +2302,13 @@ async function sendChat() {
           },
           conversation_history: convHistory,
         }),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(90000),
       });
       if (res.ok) {
         const data = await res.json();
+        clearInterval(progressTimer);
         typing.classList.remove('active');
+        if (typingStatus) typingStatus.style.display = 'none';
         appendChatMessage('bot', data.response);
         scrollChatBottom();
         responded = true;
@@ -2289,7 +2316,9 @@ async function sendChat() {
         break;
       }
       if (res.status === 429) {
+        clearInterval(progressTimer);
         typing.classList.remove('active');
+        if (typingStatus) typingStatus.style.display = 'none';
         appendChatMessage('bot', "⏳ Rate limit reached — please wait a minute and try again.");
         scrollChatBottom();
         responded = true;
@@ -2299,8 +2328,10 @@ async function sendChat() {
   }
 
   // FALLBACK: If agent API is unreachable, use local keyword matching
+  clearInterval(progressTimer);
   if (!responded) {
     typing.classList.remove('active');
+    if (typingStatus) typingStatus.style.display = 'none';
     const localAnswer = tryLocalAnswer(query);
     if (localAnswer) {
       appendChatMessage('bot', localAnswer);
