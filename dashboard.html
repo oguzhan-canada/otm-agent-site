@@ -310,10 +310,16 @@
   .chat-header-title { font-size: 14px; font-weight: 600; }
   .chat-header-sub { font-size: 11px; opacity: 0.8; }
   .chat-close {
-    margin-left: auto; background: none; border: none; color: #fff;
+    background: none; border: none; color: #fff;
     font-size: 20px; cursor: pointer; opacity: 0.7; padding: 4px;
   }
   .chat-close:hover { opacity: 1; }
+  .chat-reset {
+    background: none; border: 1px solid rgba(255,255,255,0.3); color: #fff;
+    font-size: 11px; cursor: pointer; opacity: 0.7; padding: 2px 8px;
+    border-radius: 10px; margin-left: auto;
+  }
+  .chat-reset:hover { opacity: 1; background: rgba(255,255,255,0.15); }
 
   .chat-messages {
     flex: 1; overflow-y: auto; padding: 16px;
@@ -1348,6 +1354,7 @@ function schedulePoll() {
 schedulePoll();
 
 // ── Agent Chat Widget ──────────────────────────────────────
+const CHAT_VERSION = 'v2.3.0';
 const AGENT_API_URLS = [
   "https://otm-agent-chat-481921676964.northamerica-northeast1.run.app",
   "https://otm-agent-chat-zdqsboxooa-nn.a.run.app"
@@ -1355,6 +1362,11 @@ const AGENT_API_URLS = [
 let agentApiBase = AGENT_API_URLS[0];
 let chatSessionId = localStorage.getItem('otm-chat-session') || crypto.randomUUID().slice(0, 12);
 localStorage.setItem('otm-chat-session', chatSessionId);
+// Auto-clear stale chat history from older versions
+if (localStorage.getItem('otm-chat-version') !== CHAT_VERSION) {
+  localStorage.removeItem('otm-chat-history');
+  localStorage.setItem('otm-chat-version', CHAT_VERSION);
+}
 let chatHistory = JSON.parse(localStorage.getItem('otm-chat-history') || '[]');
 
 const SUGGESTED_QUESTIONS = [
@@ -1381,6 +1393,7 @@ function initChat() {
         <div class="chat-header-title">OTM Agent</div>
         <div class="chat-header-sub">AI-powered oil tank analyst</div>
       </div>
+      <button class="chat-reset" onclick="resetChat()" title="Clear chat history">🔄 Reset</button>
       <button class="chat-close" onclick="toggleChat()">&times;</button>
     </div>
     <div class="chat-messages" id="chat-messages"></div>
@@ -1414,6 +1427,20 @@ function toggleChat() {
     document.getElementById('chat-input').focus();
     scrollChatBottom();
   }
+}
+
+function resetChat() {
+  chatHistory = [];
+  localStorage.removeItem('otm-chat-history');
+  chatSessionId = crypto.randomUUID().slice(0, 12);
+  localStorage.setItem('otm-chat-session', chatSessionId);
+  const container = document.getElementById('chat-messages');
+  container.innerHTML = '';
+  appendChatMessage('bot', "👋 Hi! I'm the **OTM Agent** — I can answer questions about oil tank fill levels, anomalies, regional trends, and radar signals across all 4 monitored hubs.\n\nTry one of the suggestions below, or ask anything!", false);
+  const sugContainer = document.getElementById('chat-suggestions');
+  if (sugContainer) sugContainer.style.display = '';
+  renderSuggestions();
+  scrollChatBottom();
 }
 
 function appendChatMessage(role, text, save = true) {
