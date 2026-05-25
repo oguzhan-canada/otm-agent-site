@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v2.3.0 - 2026-05-25 chat-fix: price routing, fill labels, hub warnings -->
+<!-- v2.3.1 - 2026-05-25T11:43 chat-fix: price routing, fill labels, hub warnings, reset button -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -8,6 +8,16 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>Live Dashboard — OTM-Agent</title>
+<script>
+// Force cache bust: if URL has no version param or wrong version, reload with cache bypass
+(function(){
+  var V = '2.3.1';
+  if (location.search.indexOf('v=' + V) === -1 && !sessionStorage.getItem('otm-cb-' + V)) {
+    sessionStorage.setItem('otm-cb-' + V, '1');
+    location.replace(location.pathname + '?v=' + V + '&t=' + Date.now() + location.hash);
+  }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
