@@ -32,7 +32,7 @@
   <p class="subtitle">8 domain-specific benchmarks for evaluating commodity intelligence agents, with 5 baselines ranging from a scheduled rule-based system to an oracle with perfect foresight.</p>
 
   <div class="card" style="border-left:3px solid var(--accent);margin-bottom:2rem;">
-    <p style="margin:0;"><strong>Status (2026-05-25):</strong> v1.1 re-runs complete. OOS Replay: <strong>50.0%</strong> directional accuracy (n=110, +2.5pp vs v1.0 same period). Skill-Retention: <strong>81.7%</strong> plan inclusion confirmed (n=60, identical to v1.0). Persona-Align: null confirmed (p=0.23). All v1.1 results use corrected cost tracking &mdash; see <a href="#cost-amendment">cost amendment</a>.</p>
+    <p style="margin:0;"><strong>Status (2026-05-25):</strong> All v1.1 re-runs complete. OOS Replay: <strong>50.0%</strong> directional accuracy (n=110, +2.5pp vs v1.0 same period). Skill-Retention: <strong>81.7%</strong> plan inclusion confirmed (n=60, identical to v1.0). Persona-Align: <strong>null confirmed</strong> (1.001&times; baseline, p=0.70). Total v1.1 cost: <strong>$16.55</strong> with corrected tracking &mdash; see <a href="#cost-amendment">cost amendment</a>.</p>
   </div>
 
   <div class="section-label">Results (populates after first run)</div>
@@ -86,6 +86,7 @@
     <p><strong>Statistical method:</strong> Mean ± bootstrap CI over 5 seeds (42–46).</p>
     <p><strong>Result: Pre-registered NULL confirmed.</strong> Persona divergence ratio 1.003&times; baseline (p=0.23, Wilcoxon). Two persona-conditioned responses are no more different from each other than two neutral-neutral runs. Skill selection Jaccard &asymp; 0.10 (agent) vs 0.11 (baseline) — effectively identical. Our pre-registered protocol predicted this as the most likely v0.1 outcome: in-prompt persona injection does not cause the LLM to condition on a 64-d float vector. v0.2 activation steering (residual-stream injection) is the hypothesized mechanism for deeper conditioning.</p>
     <p><strong>Re-verification (2026-05-24):</strong> After fixing the planner stop-condition bug, the persona benchmark was re-run with the corrected planner (49 queries &times; 4 persona modes = 196 agent runs). Both persona modes now execute multi-step plans (2-5 steps with real BQ data retrieval), eliminating the earlier confound of structurally identical minimal executions. <strong>The null result holds.</strong> This confirms the finding is genuine — the persona module's effect on planner behavior is not detectable through embedding-space cosine divergence at v0.1's in-prompt injection point. The issue is architectural, not a measurement artifact.</p>
+    <p><strong>v1.1 Re-run (2026-05-25):</strong> Re-ran with data fixes (NO_DATA routing, dtype coercion) and corrected cost tracking. Result: <strong>null confirmed</strong> &mdash; divergence ratio 1.001&times; baseline (p=0.70, Wilcoxon). 196 agent runs, n=49 comparisons. Skill Jaccard: 0.047 (agent) vs 0.040 (baseline). Cost with full tracking: <strong>$1.77</strong> (vs v1.0 reported $0.31 skill-only = 5.7&times; correction). Data fixes do not alter the persona null finding. <a href="data/otm_persona_align_v11.json">v1.1 result JSON</a>.</p>
   </div>
 
   <h3>OTM-Skill-Retention</h3>
@@ -256,17 +257,17 @@
       <thead><tr><th>Benchmark</th><th>v1.0 reported (skill only)</th><th>Corrected estimate (full)</th></tr></thead>
       <tbody>
         <tr><td>OOS Replay (237 days)</td><td>$0.04</td><td>~$9&ndash;15</td></tr>
-        <tr><td>Persona-Align (196 runs)</td><td>$0.31</td><td>~$5&ndash;8</td></tr>
+        <tr><td>Persona-Align (196 runs)</td><td>$0.31</td><td>$1.77 (v1.1 measured)</td></tr>
         <tr><td>Skill-Retention (60 probes)</td><td>$0.20</td><td>$1.65 (v1.1 measured)</td></tr>
-        <tr><td><strong>Total</strong></td><td><strong>$0.55</strong></td><td><strong>~$15&ndash;25</strong></td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>$0.55</strong></td><td><strong>$16.55 (v1.1 measured)</strong></td></tr>
       </tbody>
     </table>
-    <p><em>Corrected total is still 6&ndash;10&times; under the $150 pre-execution budget. Actual API billing may differ slightly due to prompt caching adjustments. Underlying benchmark results (54.4% directional accuracy, 81.7% skill-inclusion, persona null) are unaffected &mdash; only cost figures changed. Calibration run with corrected tracking will refine these estimates.</em></p>
+    <p><em>Corrected total is still 6&ndash;10&times; under the $150 pre-execution budget. Actual API billing may differ slightly due to prompt caching adjustments. Underlying benchmark results (54.4% directional accuracy, 81.7% skill-inclusion, persona null) are unaffected &mdash; only cost figures changed. v1.1 re-runs with corrected tracking measured: OOS $13.13, Skill-Retention $1.65, Persona-Align $1.77 &mdash; total $16.55.</em></p>
   </div>
 
 <footer>
   <span>OTM-Agent &middot; Benchmarks</span>
-  <span>Last updated: 2026-05-25 (v1.1 OOS Replay + Skill-Retention)</span>
+  <span>Last updated: 2026-05-25 (v1.1 complete — all three benchmarks re-run)</span>
 </footer>
 
 <script>

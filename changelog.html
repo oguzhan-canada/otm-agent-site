@@ -46,6 +46,21 @@
 
   <div class="changelog-entry">
     <div class="changelog-date">2026-05-25 <span class="changelog-tag tag-benchmark">benchmark</span></div>
+    <div class="changelog-title">v1.1 Persona-Align — null confirmed with corrected cost tracking</div>
+    <div class="changelog-body">
+      <p>Completed v1.1 Persona-Align re-run with data fixes and full LLM cost tracking. 196 agent runs, 49 comparisons, seed=42.</p>
+      <ul>
+        <li>Divergence ratio: 1.001&times; baseline (v1.0: 1.003&times;) &mdash; <strong>null holds</strong></li>
+        <li>Wilcoxon p=0.70 (v1.0: p=0.23) &mdash; even more clearly null</li>
+        <li>Skill Jaccard: 0.047 agent vs 0.040 baseline &mdash; no detectable persona effect</li>
+        <li>Cost: $1.77 with full tracking (v1.0 reported $0.31 skill-only = 5.7&times; correction)</li>
+        <li>All three v1.1 benchmarks now complete. Total v1.1 cost: $16.55</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-25 <span class="changelog-tag tag-benchmark">benchmark</span></div>
     <div class="changelog-title">v1.1 OOS Replay — compressed 120-day run with data fixes</div>
     <div class="changelog-body">
       <p>Completed v1.1 OOS Replay with three data-availability fixes applied (dtype coercion, NO_DATA routing, compose_signal float coercion). Budget-constrained to 120-day compressed scope (110 days completed at $13.13).</p>
