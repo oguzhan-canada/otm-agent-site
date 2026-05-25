@@ -1200,7 +1200,7 @@ async function renderCorrelation(days) {
   const rPct = pearsonR(sarWithPrice.map(d => d.matchedPrice), sarWithPrice.map(d => d.avgPct));
   const corrLabel = document.getElementById('corr-label');
   if (rDb !== null) {
-    corrLabel.textContent = `r(price,dB) = ${rDb.toFixed(3)}` + (rPct !== null ? ` | r(price,capacity%) = ${rPct.toFixed(3)}` : '') + ` | ${sarWithPrice.length} paired observations`;
+    corrLabel.textContent = `r(price,dB) = ${rDb.toFixed(3)}` + (rPct !== null ? ` | r(price,fill%) = ${rPct.toFixed(3)}` : '') + ` | ${sarWithPrice.length} paired observations`;
   } else {
     corrLabel.textContent = `${Object.keys(avgs).length} SAR days, ${priceDates.length} price days (need 3+ paired observations for correlation)`;
   }
@@ -1903,31 +1903,60 @@ function tryLocalAnswer(query) {
     return `📈 **Oil Price vs. Tank Fill Levels — The Relationship**\n\n**The basics:** When oil prices **drop**, traders buy cheap crude and store it → tank fill levels **rise**. When prices **rise**, stored oil gets sold → fill levels **drop**. This is called the **contango trade** (store now, sell later at higher futures price).\n\n**How we see it:** Our SAR radar measures physical tank surfaces. Fuller tanks have smoother surfaces → stronger radar return (less negative dB). The Daily Trend chart overlays WTI crude prices on fill signals so you can spot these patterns.\n\n**Geopolitical factors that affect both:**\n• 🇸🇦 **OPEC+ production cuts** → reduced supply → prices rise, fill levels drop\n• 🇷🇺 **Sanctions/embargoes** → rerouted trade flows → Fujairah & Singapore may see unusual builds\n• 🇺🇸 **SPR releases** → Cushing fill levels spike as government barrels enter the market\n• 🌍 **Conflict/disruption** (Strait of Hormuz, Red Sea) → shipping delays → regional fill divergence\n• 📊 **EIA weekly reports** → inventory surprises cause price swings within hours\n\n**Regional dynamics:**\n• **Cushing** — most price-sensitive (WTI delivery point). Fill tracks US supply/demand tightly\n• **Rotterdam** — European Brent benchmark hub. Affected by Russian gas/oil policy\n• **Fujairah** — Middle East buffer. Fill levels respond to OPEC decisions\n• **Singapore** — Asia demand barometer. China import policy drives levels\n\n_Check the Correlation tab above for scatter-plot analysis of price vs. signal._`;
   }
 
-  // Oil price / WTI general — simple price answer for short queries, full analysis for detailed ones
-  if (q.includes('oil price') || q.includes('wti') || q.includes('crude price')) {
-    const isSimplePriceQ = !q.includes('fill') && !q.includes('correlat') && !q.includes('relation') && !q.includes('analysis') && !q.includes('analyz') && !q.includes('signal') && !q.includes('tank') && q.length < 80;
-    if (isSimplePriceQ) {
-      const pDates = Object.keys(wtiPriceCache).sort();
-      if (pDates.length > 0) {
-        const latestD = pDates[pDates.length - 1];
-        const latestP = Number(wtiPriceCache[latestD]);
-        let resp = `💰 **WTI Crude Oil**: **$${latestP.toFixed(2)}/bbl** (${latestD})`;
-        if (pDates.length >= 5) {
-          const weekD = pDates[pDates.length - 5];
-          const weekP = Number(wtiPriceCache[weekD]);
-          const diff = latestP - weekP;
-          resp += `\n• ${diff > 0 ? '↑' : diff < 0 ? '↓' : '→'} $${Math.abs(diff).toFixed(2)} vs. ${weekD}`;
-        }
-        if (pDates.length >= 20) {
-          const monthD = pDates[pDates.length - 20];
-          const monthP = Number(wtiPriceCache[monthD]);
-          const diff = latestP - monthP;
-          resp += `\n• ${diff > 0 ? '↑' : diff < 0 ? '↓' : '→'} $${Math.abs(diff).toFixed(2)} vs. ${monthD}`;
-        }
-        resp += `\n\n_Ask "oil price vs fill analysis" for the full correlation breakdown._`;
+  // Oil price / WTI general — route to simple, daily-list, or full analysis
+  if (q.includes('oil price') || q.includes('wti') || q.includes('crude price') ||
+      (q.includes('price') && !q.includes('fill') && !q.includes('correlat'))) {
+    const wantsAnalysis = q.includes('correlat') || q.includes('relation') || q.includes('signal') || q.includes('tank') || q.includes('fill') || (q.includes('analysis') || q.includes('analyz'));
+    const pDates = Object.keys(wtiPriceCache).sort();
+
+    if (!wantsAnalysis && pDates.length > 0) {
+      // Check if user asks for "last N days" of prices
+      const nDaysMatch = q.match(/(?:last|past|recent)\s+(\d+)\s*(?:day|price)/);
+      const requestedDays = nDaysMatch ? parseInt(nDaysMatch[1]) : 0;
+
+      if (requestedDays > 0) {
+        // Show daily price table for requested number of days
+        const showDates = pDates.slice(-requestedDays);
+        let resp = `💰 **WTI Crude Oil — Last ${showDates.length} Days**\n\n`;
+        resp += `| Date | Price | Change |\n|------|-------|--------|\n`;
+        showDates.forEach((d, i) => {
+          const p = Number(wtiPriceCache[d]);
+          let chg = '';
+          if (i > 0) {
+            const prev = Number(wtiPriceCache[showDates[i - 1]]);
+            const diff = p - prev;
+            chg = `${diff > 0 ? '↑' : diff < 0 ? '↓' : '→'} $${Math.abs(diff).toFixed(2)}`;
+          }
+          resp += `| ${d} | $${p.toFixed(2)} | ${chg} |\n`;
+        });
+        const first = Number(wtiPriceCache[showDates[0]]);
+        const last = Number(wtiPriceCache[showDates[showDates.length - 1]]);
+        const totalChg = last - first;
+        resp += `\n**Net change**: ${totalChg > 0 ? '↑' : totalChg < 0 ? '↓' : '→'} $${Math.abs(totalChg).toFixed(2)} (${totalChg > 0 ? '+' : ''}${((totalChg / first) * 100).toFixed(1)}%)`;
         return resp;
       }
+
+      // Simple "what's the price?" — just show latest with context
+      const latestD = pDates[pDates.length - 1];
+      const latestP = Number(wtiPriceCache[latestD]);
+      let resp = `💰 **WTI Crude Oil**: **$${latestP.toFixed(2)}/bbl** (${latestD})`;
+      if (pDates.length >= 5) {
+        const weekD = pDates[pDates.length - 5];
+        const weekP = Number(wtiPriceCache[weekD]);
+        const diff = latestP - weekP;
+        resp += `\n• ${diff > 0 ? '↑' : diff < 0 ? '↓' : '→'} $${Math.abs(diff).toFixed(2)} vs. ${weekD}`;
+      }
+      if (pDates.length >= 20) {
+        const monthD = pDates[pDates.length - 20];
+        const monthP = Number(wtiPriceCache[monthD]);
+        const diff = latestP - monthP;
+        resp += `\n• ${diff > 0 ? '↑' : diff < 0 ? '↓' : '→'} $${Math.abs(diff).toFixed(2)} vs. ${monthD}`;
+      }
+      resp += `\n\n_Ask "oil price vs fill analysis" for the full correlation breakdown, or "oil prices last 5 days" for daily data._`;
+      return resp;
     }
+
+    // Full analysis for correlation/analytical queries
     const dataResp = buildPriceSignalAnalysis(data, curated, regions);
     if (dataResp && !dataResp.includes('still loading')) return dataResp;
     return `📈 **Oil Price & Tank Signals**\n\nThe Daily Trend chart overlays WTI crude prices on per-tank fill signals.\n\n**Key dynamics:**\n• **Rising prices** → traders sell stored oil → fill levels tend to drop\n• **Falling prices** → traders buy & store cheap oil → fill levels tend to rise (contango)\n• **Flat prices** → inventory builds/draws follow seasonal patterns & refinery demand\n\n**What our data shows:**\n• SAR-based fill estimates measure **physical tank levels** via radar backscatter\n• WTI prices reflect **market expectations** of supply/demand\n• Cushing (US benchmark hub) shows the strongest price-fill correlation\n• Overseas hubs (Rotterdam, Fujairah, Singapore) respond more to regional factors\n\n_Check the **Correlation** tab above for time-series and scatter-plot analysis._`;
