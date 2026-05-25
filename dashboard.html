@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v2.4.1 - 2026-05-25 chat-fix: context-aware follow-ups, cushing hub label -->
+<!-- v3.0.0 - 2026-05-25 agent-first architecture: all queries go to Cloud Run, local = fallback -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <script>
 // Force cache bust: if URL has no version param or wrong version, reload with cache bypass
 (function(){
-  var V = '2.4.1';
+  var V = '3.0.0';
   if (location.search.indexOf('v=' + V) === -1 && !sessionStorage.getItem('otm-cb-' + V)) {
     sessionStorage.setItem('otm-cb-' + V, '1');
     location.replace(location.pathname + '?v=' + V + '&t=' + Date.now() + location.hash);
@@ -1364,7 +1364,7 @@ function schedulePoll() {
 schedulePoll();
 
 // ── Agent Chat Widget ──────────────────────────────────────
-const CHAT_VERSION = 'v2.4.1';
+const CHAT_VERSION = 'v3.0.0';
 const AGENT_API_URLS = [
   "https://otm-agent-chat-481921676964.northamerica-northeast1.run.app",
   "https://otm-agent-chat-zdqsboxooa-nn.a.run.app"
@@ -2235,27 +2235,42 @@ async function sendChat() {
   const sugContainer = document.getElementById('chat-suggestions');
   if (sugContainer) sugContainer.style.display = 'none';
 
-  // Try local answer first
-  const localAnswer = tryLocalAnswer(query);
-  if (localAnswer) {
-    appendChatMessage('bot', localAnswer);
-    scrollChatBottom();
-    return;
+  // ── AGENT-FIRST ARCHITECTURE ──
+  // Send ALL queries to Cloud Run agent with dashboard context.
+  // Local keyword matching is ONLY used as fallback when API is unreachable.
+
+  const dashboardContext = buildDashboardContext();
+
+  const recentPrices = {};
+  if (wtiPriceCache) {
+    const pDates = Object.keys(wtiPriceCache).sort().slice(-10);
+    pDates.forEach(d => { recentPrices[d] = wtiPriceCache[d]; });
   }
 
-  // Show typing indicator
+  const convHistory = chatHistory.slice(-6).map(m => ({
+    role: m.role === 'user' ? 'user' : 'assistant',
+    content: m.content,
+  }));
+
   const typing = document.getElementById('chat-typing');
   typing.classList.add('active');
   scrollChatBottom();
 
-  // Try agent API
   let responded = false;
   for (const url of AGENT_API_URLS) {
     try {
       const res = await fetch(`${url}/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, session_id: chatSessionId }),
+        body: JSON.stringify({
+          query,
+          session_id: chatSessionId,
+          context: {
+            dashboard_snapshot: dashboardContext,
+            recent_prices: recentPrices,
+          },
+          conversation_history: convHistory,
+        }),
         signal: AbortSignal.timeout(30000),
       });
       if (res.ok) {
@@ -2279,18 +2294,22 @@ async function sendChat() {
 
   if (!responded) {
     typing.classList.remove('active');
-    // Provide a helpful local-only fallback
-    const ctx = buildDashboardContext();
-    let fallback = "🤖 The agent API isn't available right now, but I can still help with data that's loaded on this page.\n\n";
-    fallback += "Try asking about:\n";
-    fallback += "• **Latest fill levels** at any region\n";
-    fallback += "• **Anomalies** or unusual readings\n";
-    fallback += "• **Compare regions** side by side\n";
-    fallback += "• A specific tank like **cus_ok_t01**\n";
-    fallback += "• **Which tanks changed** the most\n\n";
-    fallback += "_These work offline using live dashboard data._";
-    appendChatMessage('bot', fallback);
-    scrollChatBottom();
+    const localAnswer = tryLocalAnswer(query);
+    if (localAnswer) {
+      appendChatMessage('bot', localAnswer);
+      scrollChatBottom();
+    } else {
+      let fallback = "🤖 The agent API isn't available right now, but I can still help with data that's loaded on this page.\n\n";
+      fallback += "Try asking about:\n";
+      fallback += "• **Latest fill levels** at any region\n";
+      fallback += "• **Oil prices** for the last week\n";
+      fallback += "• **Anomalies** or unusual readings\n";
+      fallback += "• **Which tank** is most correlated with prices\n";
+      fallback += "• A specific tank like **cus_n_t01**\n\n";
+      fallback += "_These work offline using live dashboard data._";
+      appendChatMessage('bot', fallback);
+      scrollChatBottom();
+    }
   }
 }
 
