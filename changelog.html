@@ -61,6 +61,21 @@
   </div>
 
   <div class="changelog-entry">
+    <div class="changelog-date">2026-05-25 <span class="changelog-tag tag-benchmark">benchmark</span></div>
+    <div class="changelog-title">v1.1 Skill-Retention — confirmed 81.7% with corrected cost tracking</div>
+    <div class="changelog-body">
+      <p>Re-ran Skill-Retention benchmark (60 probes, 20 skills) with data fixes and corrected cost tracking. Result identical to v1.0.</p>
+      <ul>
+        <li>Plan inclusion: <strong>81.7%</strong> (unchanged from v1.0)</li>
+        <li>Top-3: 58.3% (+3.3pp vs v1.0 55%), Top-1: 21.7% (same)</li>
+        <li>Mean plan length: 3.3 steps (vs v1.0 3.4)</li>
+        <li>Cost with full tracking: <strong>$1.65</strong> (vs v1.0 reported $0.20 skill-only &mdash; 8.3&times; correction)</li>
+        <li>Confirms data-availability fixes do not affect planner skill selection</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
     <div class="changelog-date">2026-05-25 <span class="changelog-tag tag-benchmark">benchmark</span> <span class="changelog-tag tag-infra">infra</span></div>
     <div class="changelog-title">Cost tracking amendment — LLM costs now captured</div>
     <div class="changelog-body">
