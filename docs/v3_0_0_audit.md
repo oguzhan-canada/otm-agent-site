@@ -73,4 +73,7 @@ The v3.0.0 agent-first architecture change is **safe for the published v1.1 benc
 - Test suite shows zero new regressions
 - Q27 edge case fixed with system prompt update
 
-The published benchmark numbers (Skill-Retention 81.7%, Persona-Align 100%, OOS-Replay 65.35%) remain reproducible against the current codebase.
+The published benchmark numbers remain reproducible against the current codebase:
+- **OTM-Skill-Retention:** 81.7% plan inclusion (n=60, $1.65)
+- **OTM-Persona-Align:** null result, p=0.70 (n=49, $1.77) — pre-registered null hypothesis confirmed
+- **OTM-OOS-Replay:** 50.0% directional accuracy (n=110, CI 40.9–60.0%, $13.13) — within pre-registered 1-5pp improvement window over v1.0's 47.5% on same period
