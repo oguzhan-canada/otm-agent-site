@@ -1756,7 +1756,17 @@ function buildPriceSignalAnalysis(data, curated, regions) {
     }
   }
 
+  lastChatContext = { topic: 'price-analysis', response: resp };
   return resp;
+}
+
+// Derive hub name from tank_id prefix
+function regionFromTankId(tid) {
+  if (tid.startsWith('cus_')) return 'cushing';
+  if (tid.startsWith('rot_')) return 'rotterdam';
+  if (tid.startsWith('fuj_')) return 'fujairah';
+  if (tid.startsWith('sgp_')) return 'singapore';
+  return 'unknown';
 }
 
 // Per-tank price correlation ranking
@@ -1790,7 +1800,7 @@ function buildPerTankCorrelation(curated, data) {
       const r = pearsonR(paired.map(p => p.price), paired.map(p => p.db));
       if (r !== null) {
         const tank = curated.find(t => t.tank_id === tid);
-        results.push({ tid, r, absR: Math.abs(r), n: paired.length, region: tank ? tank.region_code : 'unknown' });
+        results.push({ tid, r, absR: Math.abs(r), n: paired.length, region: tank ? tank.region_code : regionFromTankId(tid) });
       }
     }
   });
@@ -1810,6 +1820,7 @@ function buildPerTankCorrelation(curated, data) {
   if (top.absR < 0.2) {
     resp += `\n\n_⚠️ Note: Even the strongest correlation is negligible (|r| < 0.2). SAR radar signals at these hubs show very weak price sensitivity at the individual tank level._`;
   }
+  lastChatContext = { topic: 'per-tank-correlation', response: resp };
   return resp;
 }
 
@@ -1957,6 +1968,9 @@ function buildDataAnalysis(data, curated, regions, tankFeatures) {
 }
 
 // Smart local responses using dashboard data
+// Track last chat response topic for follow-up context
+let lastChatContext = { topic: null, response: null };
+
 function tryLocalAnswer(query) {
   const q = query.toLowerCase();
   const data = snapshotData;
@@ -2073,7 +2087,20 @@ function tryLocalAnswer(query) {
     return `📈 **Oil Price & Tank Signals**\n\nThe Daily Trend chart overlays WTI crude prices on per-tank fill signals.\n\n**Key dynamics:**\n• **Rising prices** → traders sell stored oil → fill levels tend to drop\n• **Falling prices** → traders buy & store cheap oil → fill levels tend to rise (contango)\n• **Flat prices** → inventory builds/draws follow seasonal patterns & refinery demand\n\n**What our data shows:**\n• SAR-based fill estimates measure **physical tank levels** via radar backscatter\n• WTI prices reflect **market expectations** of supply/demand\n• Cushing (US benchmark hub) shows the strongest price-fill correlation\n• Overseas hubs (Rotterdam, Fujairah, Singapore) respond more to regional factors\n\n_Check the **Correlation** tab above for time-series and scatter-plot analysis._`;
   }
 
-  // Explain / what is questions about the project (only if NOT asking about data/metrics/findings)
+  // Follow-up context questions: "explain this", "what does this mean", "tell me more"
+  if (lastChatContext.topic && (
+      (q.includes('this') || q.includes('that') || q.includes('these') || q.includes('result')) &&
+      (q.includes('explain') || q.includes('what') || q.includes('mean') || q.includes('more') || q.includes('understand') || q.includes('why') || q.includes('how'))
+     ) && q.length < 80) {
+    if (lastChatContext.topic === 'per-tank-correlation') {
+      return `📖 **Understanding the Per-Tank Correlation Results**\n\n**What Pearson r means:**\n• **r = -1.0** → perfect inverse: when price goes up, radar signal goes down\n• **r = 0** → no relationship at all\n• **r = +1.0** → perfect positive: both move together\n\n**Strength guide:**\n• 🟢 |r| > 0.5 — **Strong**: tank signal meaningfully tracks price\n• 🟡 |r| 0.2–0.5 — **Weak**: some relationship but noisy\n• ⚪ |r| < 0.2 — **Negligible**: effectively random\n\n**Why negative r makes sense:**\nWhen oil prices **rise**, traders sell stored oil → tanks empty → radar signal **drops** (more negative dB). So a **negative r** between price and radar dB is the expected physical relationship.\n\n**Why most correlations are weak:**\n• SAR radar measures surface roughness, not volume directly\n• Weather, maintenance, and calibration add noise\n• Different tank sizes and operational patterns vary by hub\n• WTI price reflects US-centric supply/demand; overseas hubs follow regional dynamics\n\n**The n column** shows how many paired observations (days where we have both radar data AND a price) were available. More observations = more reliable r.`;
+    }
+    if (lastChatContext.topic === 'price-analysis') {
+      return `📖 **Understanding the Price-Signal Analysis**\n\n**dB (decibels):** Radar return strength. More negative = weaker signal = emptier tank surface.\n• -10 dB → strong return (fuller)\n• -16 dB → weak return (emptier)\n\n**Fill Level %:** Derived from radar dB using reference calibration values. Higher % = fuller tank.\n\n**Correlation (r):** How closely price and signal move together. Values near 0 mean they move independently.\n\n**Why prices and tank signals might not correlate:**\n• SAR measures physical tank surfaces, not market sentiment\n• Supply chain delays: price moves today affect inventory weeks later\n• Different hubs respond to regional dynamics, not just WTI`;
+    }
+  }
+
+  // Explain / what is questions — check if it's a follow-up about the last topic
   if (q.includes('explain') && !q.includes('price') && !q.includes('fill') && !q.includes('geopolit') && !q.includes('metric') && !q.includes('finding') && !q.includes('data') && !q.includes('week') && !q.includes('story') && !q.includes('trend') && !q.includes('last') && !q.includes('recent')) {
     return `🛰️ **OTM-Agent in a Nutshell**\n\nWe use **satellites** (Sentinel-1 SAR) to monitor **oil storage tanks** around the world — like having eyes in space watching how full or empty they are.\n\n**4 global hubs monitored:**\n• Cushing 🇺🇸 • Rotterdam 🇳🇱 • Fujairah 🇦🇪 • Singapore 🇸🇬\n\n**How:** Radar bounces off tank surfaces. Full tanks = smooth surface = strong signal. Empty tanks = rough surface = weak signal. Our pipeline processes this daily and translates radar strength (dB) into fill percentages.\n\n**Why it matters:** Oil traders and analysts need to know global storage levels. More storage = oversupply risk. Less storage = shortage risk. This intelligence helps forecast prices.\n\nAsk me about any specific hub, tank, or trend!`;
   }
