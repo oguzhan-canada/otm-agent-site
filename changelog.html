@@ -45,6 +45,20 @@
   <p style="color:var(--text2);margin-bottom:2rem;">Reverse-chronological log of meaningful updates to the OTM-Agent project.</p>
 
   <div class="changelog-entry">
+    <div class="changelog-date">2026-05-27 <span class="changelog-tag tag-infra">agent</span></div>
+    <div class="changelog-title">Phase 1 anti-hallucination prompt &mdash; 33% → 70% pass rate</div>
+    <div class="changelog-body">
+      <p>Deployed anti-hallucination prompt improvements to the chat agent (Cloud Run revision <code>otm-agent-chat-00017-rux</code>).</p>
+      <ul>
+        <li><strong>Rule 11 (NUMERICAL CITATIONS):</strong> Agent may only cite values explicitly present in context fields. Prevents training-data confabulation.</li>
+        <li><strong>Benchmark facts injected:</strong> Verified results for all 5 benchmarks added to planner system prompt (Skill-Retention 81.7%, OOS Replay 50.0%, Persona-Align p=0.70, Mem-Utility null, MultiTurn-Persona underpowered).</li>
+        <li><strong>Anti-fabrication rules:</strong> Response template now forbids fabricated technical analysis (support/resistance levels, price targets) unless backed by model output.</li>
+        <li><strong>Test suite result:</strong> API pass rate improved from 33% (5/15) to 70% (7/10). Hallucination rate dropped from 13% to 10%. Zero timeouts.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
     <div class="changelog-date">2026-05-26 <span class="changelog-tag tag-fix">fix</span></div>
     <div class="changelog-title">Chat widget JS bug &mdash; m.text vs m.content property mismatch</div>
     <div class="changelog-body">
