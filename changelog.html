@@ -45,6 +45,14 @@
   <p style="color:var(--text2);margin-bottom:2rem;">Reverse-chronological log of meaningful updates to the OTM-Agent project.</p>
 
   <div class="changelog-entry">
+    <div class="changelog-date">2026-05-26 <span class="changelog-tag tag-fix">fix</span></div>
+    <div class="changelog-title">Chat widget JS bug &mdash; m.text vs m.content property mismatch</div>
+    <div class="changelog-body">
+      <p>Chat widget silently crashed before sending API call. Root cause: <code>chatHistory</code> stores messages as <code>{role, text}</code> but the v3.1.0 token-capping code referenced <code>m.content</code> (always <code>undefined</code>). Fixed by using <code>m.text || m.content || ''</code> in both <code>index.html</code> and <code>dashboard.html</code>.</p>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
     <div class="changelog-date">2026-05-26 <span class="changelog-tag tag-infra">infra</span> <span class="changelog-tag tag-data">data</span></div>
     <div class="changelog-title">Multi-source oil price feed &mdash; never-stale architecture</div>
     <div class="changelog-body">
