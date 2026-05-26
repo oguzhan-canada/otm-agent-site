@@ -45,6 +45,38 @@
   <p style="color:var(--text2);margin-bottom:2rem;">Reverse-chronological log of meaningful updates to the OTM-Agent project.</p>
 
   <div class="changelog-entry">
+    <div class="changelog-date">2026-05-26 <span class="changelog-tag tag-infra">infra</span> <span class="changelog-tag tag-data">data</span></div>
+    <div class="changelog-title">Multi-source oil price feed &mdash; never-stale architecture</div>
+    <div class="changelog-body">
+      <p>Upstream <code>datasets/oil-prices</code> GitHub CSV stopped updating May 18. Replaced single-source dependency with resilient 3-source fallback and daily automation.</p>
+      <ul>
+        <li>New primary: self-hosted <code>data/wti_prices.json</code> (503 prices through today)</li>
+        <li>Fallback chain: FRED API &rarr; Yahoo Finance &rarr; GitHub CSV</li>
+        <li>GitHub Actions workflow (<code>update-prices.yml</code>) runs Mon&ndash;Fri at 22:30 UTC</li>
+        <li>FRED API key stored in GCP Secret Manager + GitHub repo secret</li>
+        <li>Staleness banner auto-shows when data &gt;4 days old</li>
+        <li>Both <code>index.html</code> and <code>dashboard.html</code> updated with identical multi-source <code>fetchOilPrices()</code></li>
+        <li>Added <code>.nojekyll</code> to prevent Jekyll build failures with workflow YAML</li>
+        <li>First automated run: FRED fetched 491 prices, merged to 503 total &mdash; fully verified end-to-end</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-26 <span class="changelog-tag tag-infra">infra</span></div>
+    <div class="changelog-title">Chatbot agent cold-start fix &mdash; warm instance + reduced replans</div>
+    <div class="changelog-body">
+      <p>Chatbot was timing out due to Cloud Run cold starts (~20s) combined with 3-replan loops (~40s each). Fixed infrastructure to keep the agent responsive.</p>
+      <ul>
+        <li>Set <code>min-instances=1</code> on <code>otm-agent-chat</code> Cloud Run &mdash; eliminates cold starts</li>
+        <li>Reduced <code>OTM_MAX_REPLANS</code> from 3 to 1 &mdash; agent responds within 90s timeout</li>
+        <li>Created missing <code>otm_agent.episodes</code> BigQuery dataset + table &mdash; episodic memory now persists</li>
+        <li>Verified: 200 OK on both API URLs, responses within 40&ndash;50s for complex queries</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
     <div class="changelog-date">2026-05-25 <span class="changelog-tag tag-benchmark">benchmark</span></div>
     <div class="changelog-title">v1.1 Persona-Align — null confirmed with corrected cost tracking</div>
     <div class="changelog-body">
