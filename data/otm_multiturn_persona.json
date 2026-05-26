@@ -50,6 +50,8 @@
       "description": "Zero delta \u2014 persona has no multi-turn effect"
     }
   ],
-  "notes": "n=7 conversation sequences, 5 turns each. Wilcoxon p=0.1094. Total cost: $2.57. Convergence delta = late divergence - early divergence.",
+  "notes": "EXPLORATORY — not pre-registered. Executed post-hoc at reduced scale (designed n=100, actual n=7) due to budget constraints. Result statistically underpowered — not interpretable at this sample size. 7 conversation sequences, 5 turns each. Wilcoxon p=0.1094. Total cost: $2.57.",
+  "protocol": "exploratory_post_hoc_not_pre_registered",
+  "designed_n": 100,
   "data_filter": "5-turn sequences with persistent agent state per persona mode."
 }

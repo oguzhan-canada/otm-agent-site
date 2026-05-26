@@ -73,6 +73,8 @@
       "description": "Zero utility \u2014 memory has no effect"
     }
   ],
-  "notes": "Real agent calls with LLM-as-judge (Claude Haiku) blind scoring. n=25 queries across 5 categories. Total cost: $1.39.",
+  "notes": "EXPLORATORY — not pre-registered. Executed post-hoc at reduced scale (designed n=500, actual n=25) due to budget constraints. Results statistically underpowered for subcategory analysis. Real agent calls with LLM-as-judge (Claude Haiku) blind scoring. Total cost: $1.39.",
+  "protocol": "exploratory_post_hoc_not_pre_registered",
+  "designed_n": 500,
   "data_filter": "Queries span 5 categories; judge order randomized per query."
 }
