@@ -45,7 +45,21 @@
   <p style="color:var(--text2);margin-bottom:2rem;">Reverse-chronological log of meaningful updates to the OTM-Agent project.</p>
 
   <div class="changelog-entry">
-    <div class="changelog-date">2026-05-27 <span class="changelog-tag tag-infra">agent</span></div>
+    <div class="changelog-date">2026-05-26 <span class="changelog-tag tag-infra">agent</span></div>
+    <div class="changelog-title">Phase 2 FAQ pre-check &mdash; 93% pass rate, 0 hallucinations</div>
+    <div class="changelog-body">
+      <p>Deployed FAQ short-circuit and knowledge-first routing to the chat agent (revision <code>otm-agent-chat-00019-rip</code>).</p>
+      <ul>
+        <li><strong>FAQ pre-check:</strong> 9 regex patterns bypass the planner LLM entirely for canonical queries (tank count, benchmark results, hub list, audit cycles). Responds in ~1.2s at $0.00 cost.</li>
+        <li><strong>KNOWN_FACTS dict:</strong> Authoritative agent specs and benchmark results injected into zero-step response prompt.</li>
+        <li><strong>Rule 9 rewrite:</strong> Knowledge-first routing with explicit query-pattern categories. Zero-step plans for facts, multi-step only for live data.</li>
+        <li><strong>Results:</strong> API pass rate 33% → 70% → <strong>93%</strong>. Zero hallucinations (down from 2 at baseline). FAQ queries 20-40× faster than skill-based.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="changelog-entry">
+    <div class="changelog-date">2026-05-26 <span class="changelog-tag tag-infra">agent</span></div>
     <div class="changelog-title">Phase 1 anti-hallucination prompt &mdash; 33% → 70% pass rate</div>
     <div class="changelog-body">
       <p>Deployed anti-hallucination prompt improvements to the chat agent (Cloud Run revision <code>otm-agent-chat-00017-rux</code>).</p>
