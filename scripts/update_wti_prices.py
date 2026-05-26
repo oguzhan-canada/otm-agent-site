@@ -8,7 +8,7 @@ Sources tried in order:
 Designed to run in GitHub Actions daily or locally.
 """
 import json, urllib.request, csv, io, os, sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 FRED_URL = "https://api.stlouisfed.org/fred/series/observations?series_id=DCOILWTICO&file_type=json&sort_order=asc&observation_start={start}"
 FRED_API_KEY = os.environ.get("FRED_API_KEY", "")
@@ -64,7 +64,7 @@ def fetch_yahoo(start_date: str) -> dict:
     prices = {}
     for ts, close in zip(timestamps, closes):
         if close is not None:
-            d = datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
+            d = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
             if d >= start_date:
                 prices[d] = round(close, 2)
     return prices
