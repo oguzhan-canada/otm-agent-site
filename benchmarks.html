@@ -32,7 +32,7 @@
   <p class="subtitle">8 domain-specific benchmarks for evaluating commodity intelligence agents, with 5 baselines ranging from a scheduled rule-based system to an oracle with perfect foresight.</p>
 
   <div class="card" style="border-left:3px solid var(--accent);margin-bottom:2rem;">
-    <p style="margin:0;"><strong>Status (2026-05-26):</strong> Five v1.1 benchmarks complete. OOS Replay: <strong>50.0%</strong> (n=110). Skill-Retention: <strong>81.7%</strong> (n=60). Persona-Align: <strong>null confirmed</strong> (p=0.70). Mem-Utility: <strong>null</strong> (&minus;0.064, CI crosses zero, n=25). MultiTurn-Persona: <strong>suggestive</strong> (+0.173, p=0.109, n=7). Total v1.1 cost: <strong>$20.51</strong> &mdash; see <a href="#cost-amendment">cost amendment</a>.</p>
+    <p style="margin:0;"><strong>Status (2026-05-26):</strong> Three pre-registered v1.1 benchmarks complete. OOS Replay: <strong>50.0%</strong> (n=110). Skill-Retention: <strong>81.7%</strong> (n=60). Persona-Align: <strong>null confirmed</strong> (p=0.70). Two exploratory benchmarks at reduced scale: Mem-Utility: <strong>null</strong> (&minus;0.064, n=25, not pre-registered). MultiTurn-Persona: <strong>underpowered</strong> (+0.173, p=0.109, n=7, not pre-registered). Total v1.1 cost: <strong>$20.51</strong> ($0.51 over $20 cap) &mdash; see <a href="#cost-amendment">cost amendment</a>.</p>
   </div>
 
   <div class="section-label">Results (populates after first run)</div>
@@ -101,19 +101,21 @@
     <p><strong>v1.1 Re-run (2026-05-25):</strong> Re-ran with data fixes (NO_DATA routing, dtype coercion) and corrected cost tracking. Result: <strong>81.7% plan inclusion</strong> (identical to v1.0). Top-3: 58.3% (+3.3pp), Top-1: 21.7% (same). Mean plan length: 3.3 steps. Cost with full tracking: <strong>$1.65</strong> (vs v1.0 reported $0.20 skill-only). Confirms data fixes do not affect skill selection. <a href="data/otm_skill_retention_v11.json">v1.1 result JSON</a>.</p>
   </div>
 
-  <h3>OTM-Mem-Utility</h3>
+  <h3>OTM-Mem-Utility <span style="color:#F5A623;font-size:0.8em;">(Exploratory)</span></h3>
   <div class="card">
     <div class="card-title">What this measures</div>
     <p>Counterfactual evaluation: queries run with full memory retrieval, then the same queries with memory disabled (NoopMemoryManager). Response quality compared via LLM-as-judge (Claude Haiku rates both on 0&ndash;5, blind, order randomized). Memory utility = mean(with_memory) &minus; mean(without_memory).</p>
     <p>Positive utility means memory retrieval improved outcomes; negative means it hurt. Reports per-query delta plus overall.</p>
-    <p><strong>v1.1 Result (n=25, seed=42, $1.39):</strong> Memory utility: <strong>&minus;0.064</strong> (95% CI: &minus;0.276 to +0.128). Mean score with memory: 3.77/5.0. Mean score without memory: 3.83/5.0. The CI crosses zero &mdash; the 4-tier memory system does not produce a statistically detectable improvement. By category: factual domain +0.14, historical comparison +0.06, reasoning &minus;0.06, real-time &minus;0.08, pattern recognition &minus;0.38. <a href="data/otm_mem_utility.json">Result JSON</a>.</p>
+    <p><strong>Status: Exploratory.</strong> Not pre-registered. Executed at n=25 (designed scale: 500). Results reported for transparency but statistically underpowered for subcategory analysis.</p>
+    <p><strong>v1.1 Result (n=25, seed=42, $1.39):</strong> Memory utility: <strong>&minus;0.064</strong> (95% CI: &minus;0.276 to +0.128). Mean score with memory: 3.77/5.0. Mean score without memory: 3.83/5.0. The CI crosses zero &mdash; the 4-tier memory system does not produce a statistically detectable improvement. Per-category results (n=5 each) have extremely wide CIs and are not statistically interpretable. Full-scale execution at n&ge;200 scoped for v1.2. <a href="data/otm_mem_utility.json">Result JSON</a>.</p>
   </div>
 
-  <h3>OTM-MultiTurn-Persona</h3>
+  <h3>OTM-MultiTurn-Persona <span style="color:#F5A623;font-size:0.8em;">(Exploratory)</span></h3>
   <div class="card">
     <div class="card-title">What this measures</div>
     <p>Multi-turn sessions (5 turns each) testing whether persona modes produce increasingly distinct behavior across turns. Each conversation runs under two opposing persona modes (execution_oriented vs analysis_oriented) with the same agent instance persisting. Measures Jaccard skill divergence at turns 1&ndash;2 (early) vs 4&ndash;5 (late). Convergence delta = late divergence &minus; early divergence.</p>
-    <p><strong>v1.1 Result (n=7 sequences, seed=42, $2.57):</strong> Convergence delta: <strong>+0.173</strong> (95% CI: &minus;0.064 to +0.378). Mean early divergence: 0.162. Mean late divergence: 0.335. Wilcoxon p=0.1094 &mdash; suggestive but not statistically significant at &alpha;=0.05. The positive trend is consistent with Bayesian Kalman persona convergence. Confirmatory run at n&ge;20 deferred to v1.2. <a href="data/otm_multiturn_persona.json">Result JSON</a>.</p>
+    <p><strong>Status: Exploratory.</strong> Not pre-registered. Executed at n=7 sequences (designed scale: 100). At this sample size, the benchmark lacks statistical power to reliably distinguish signal from noise.</p>
+    <p><strong>v1.1 Result (n=7 sequences, seed=42, $2.57):</strong> Convergence delta: <strong>+0.173</strong> (95% CI: &minus;0.064 to +0.378). Mean early divergence: 0.162. Mean late divergence: 0.335. Wilcoxon p=0.1094 &mdash; not statistically significant. The positive direction is noted but cannot be distinguished from chance at n=7. No conclusions about persona convergence should be drawn from this run. Confirmatory run at n&ge;20 with pre-registered protocol scoped for v1.2. <a href="data/otm_multiturn_persona.json">Result JSON</a>.</p>
   </div>
 
   <h3>OTM-OOS-Replay</h3>
