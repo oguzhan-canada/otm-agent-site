@@ -138,7 +138,7 @@ Overall plan inclusion: **81.7%** (95% CI: [71.7%, 91.7%])
 Overall top-1 accuracy: **21.7%** (secondary — strict positional, expected skill as first step)
 Overall top-3 accuracy: **55.0%** (secondary)
 
-**Plan statistics:** Median plan length = 4.0 steps, mean = 3.4 steps. Corrected random baseline for plan inclusion = **15.9%** (chance of 1 target skill in a 3.4-step plan from 20 skills). Observed plan inclusion is **5.1× the corrected random baseline**.
+**Plan statistics:** Median plan length = 4.0 steps, mean = 3.4 steps. Corrected random baseline for plan inclusion = **15.7%** (chance of 1 target skill in a 3.4-step plan from 20 skills). Observed plan inclusion is **5.2× the corrected random baseline**.
 
 > **Protocol amendment (2026-05-23):** Primary metric changed from top-1 accuracy to plan inclusion after identifying three measurement bugs in the benchmark code. See `SKILL_RETENTION_PROTOCOL.md` for full amendment with rationale. Initial top-1 result (23.3%) was a measurement artifact — the planner was routing correctly all along.
 
@@ -158,7 +158,7 @@ Per-category breakdown:
 | trade | 100.0% | 0.0% | Perfect: trade skills planned but preceded by data-fetch prerequisites |
 | alert | 100.0% | 0.0% | Perfect plan inclusion; alert skills always downstream of fetch steps |
 
-**Interpretation.** The planner demonstrates strong skill selection across all categories when measured by plan inclusion (81.7%, 5.1× corrected random baseline). The discrepancy with strict positional top-1 accuracy (21.7%) reflects the multi-step planner architecture: the planner correctly places prerequisite data-fetch steps before domain-specific skills, pushing expected skills to positions 2-4. This is correct behavior — not a routing failure. Categories previously reported at 0% (ml, llm, trade, alert) all achieve 100% plan inclusion, confirming the planner's skill catalog coverage is comprehensive. The remaining misses concentrate in query-category disambiguation (compare_to_history vs fetch_tank_features, fetch_inventory_baseline) and the sense_tank_state skill (substituted by fetch_tank_features).
+**Interpretation.** The planner demonstrates strong skill selection across all categories when measured by plan inclusion (81.7%, 5.2× corrected random baseline). The discrepancy with strict positional top-1 accuracy (21.7%) reflects the multi-step planner architecture: the planner correctly places prerequisite data-fetch steps before domain-specific skills, pushing expected skills to positions 2-4. This is correct behavior — not a routing failure. Categories previously reported at 0% (ml, llm, trade, alert) all achieve 100% plan inclusion, confirming the planner's skill catalog coverage is comprehensive. The remaining misses concentrate in query-category disambiguation (compare_to_history vs fetch_tank_features, fetch_inventory_baseline) and the sense_tank_state skill (substituted by fetch_tank_features).
 
 ---
 
