@@ -32,7 +32,7 @@
   <p class="subtitle">8 domain-specific benchmarks for evaluating commodity intelligence agents, with 5 baselines ranging from a scheduled rule-based system to an oracle with perfect foresight.</p>
 
   <div class="card" style="border-left:3px solid var(--accent);margin-bottom:2rem;">
-    <p style="margin:0;"><strong>Status (2026-05-25):</strong> All v1.1 re-runs complete. OOS Replay: <strong>50.0%</strong> directional accuracy (n=110, +2.5pp vs v1.0 same period). Skill-Retention: <strong>81.7%</strong> plan inclusion confirmed (n=60, identical to v1.0). Persona-Align: <strong>null confirmed</strong> (1.001&times; baseline, p=0.70). Total v1.1 cost: <strong>$16.55</strong> with corrected tracking &mdash; see <a href="#cost-amendment">cost amendment</a>.</p>
+    <p style="margin:0;"><strong>Status (2026-05-26):</strong> Five v1.1 benchmarks complete. OOS Replay: <strong>50.0%</strong> (n=110). Skill-Retention: <strong>81.7%</strong> (n=60). Persona-Align: <strong>null confirmed</strong> (p=0.70). Mem-Utility: <strong>null</strong> (&minus;0.064, CI crosses zero, n=25). MultiTurn-Persona: <strong>suggestive</strong> (+0.173, p=0.109, n=7). Total v1.1 cost: <strong>$20.51</strong> &mdash; see <a href="#cost-amendment">cost amendment</a>.</p>
   </div>
 
   <div class="section-label">Results (populates after first run)</div>
@@ -70,7 +70,7 @@
       <tr><td>3</td><td><strong>OTM-Mem-Utility</strong></td><td id="t-mem-n">—</td><td>memory_utility</td><td><span class="status-planned" id="s-mem">scheduled</span></td><td>Bi-weekly</td></tr>
       <tr><td>4</td><td><strong>OTM-OOS-Replay</strong></td><td id="t-oos-n">—</td><td>directional_accuracy</td><td><span class="status-planned" id="s-oos">scheduled</span></td><td>Monthly</td></tr>
       <tr><td>5</td><td>OTM-LongCtx</td><td>200</td><td>accuracy</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
-      <tr><td>6</td><td>OTM-MultiTurn-Persona</td><td>100</td><td>persona_convergence</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
+      <tr><td>6</td><td><strong>OTM-MultiTurn-Persona</strong></td><td>7</td><td>convergence_delta</td><td><span class="status-complete">v1.1 ✓</span></td><td>—</td></tr>
       <tr><td>7</td><td>OTM-DistShift</td><td>50</td><td>robustness_score</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
       <tr><td>8</td><td>OTM-Mem-Ablation</td><td>200</td><td>reward_delta</td><td><span class="status-planned">v1.1</span></td><td>—</td></tr>
     </tbody>
@@ -104,8 +104,16 @@
   <h3>OTM-Mem-Utility</h3>
   <div class="card">
     <div class="card-title">What this measures</div>
-    <p>Counterfactual evaluation: 500 queries run with full memory retrieval, then the same queries with memory disabled. Response quality compared via LLM-as-judge (Sonnet rates both on 0–5, blind). Memory utility = mean(with_memory) − mean(without_memory).</p>
+    <p>Counterfactual evaluation: queries run with full memory retrieval, then the same queries with memory disabled (NoopMemoryManager). Response quality compared via LLM-as-judge (Claude Haiku rates both on 0&ndash;5, blind, order randomized). Memory utility = mean(with_memory) &minus; mean(without_memory).</p>
     <p>Positive utility means memory retrieval improved outcomes; negative means it hurt. Reports per-query delta plus overall.</p>
+    <p><strong>v1.1 Result (n=25, seed=42, $1.39):</strong> Memory utility: <strong>&minus;0.064</strong> (95% CI: &minus;0.276 to +0.128). Mean score with memory: 3.77/5.0. Mean score without memory: 3.83/5.0. The CI crosses zero &mdash; the 4-tier memory system does not produce a statistically detectable improvement. By category: factual domain +0.14, historical comparison +0.06, reasoning &minus;0.06, real-time &minus;0.08, pattern recognition &minus;0.38. <a href="data/otm_mem_utility.json">Result JSON</a>.</p>
+  </div>
+
+  <h3>OTM-MultiTurn-Persona</h3>
+  <div class="card">
+    <div class="card-title">What this measures</div>
+    <p>Multi-turn sessions (5 turns each) testing whether persona modes produce increasingly distinct behavior across turns. Each conversation runs under two opposing persona modes (execution_oriented vs analysis_oriented) with the same agent instance persisting. Measures Jaccard skill divergence at turns 1&ndash;2 (early) vs 4&ndash;5 (late). Convergence delta = late divergence &minus; early divergence.</p>
+    <p><strong>v1.1 Result (n=7 sequences, seed=42, $2.57):</strong> Convergence delta: <strong>+0.173</strong> (95% CI: &minus;0.064 to +0.378). Mean early divergence: 0.162. Mean late divergence: 0.335. Wilcoxon p=0.1094 &mdash; suggestive but not statistically significant at &alpha;=0.05. The positive trend is consistent with Bayesian Kalman persona convergence. Confirmatory run at n&ge;20 deferred to v1.2. <a href="data/otm_multiturn_persona.json">Result JSON</a>.</p>
   </div>
 
   <h3>OTM-OOS-Replay</h3>
@@ -264,15 +272,17 @@
         <tr><td>OOS Replay (110 days v1.1)</td><td>$0.04</td><td>$13.13 (v1.1 measured)</td></tr>
         <tr><td>Persona-Align (196 runs)</td><td>$0.31</td><td>$1.77 (v1.1 measured)</td></tr>
         <tr><td>Skill-Retention (60 probes)</td><td>$0.20</td><td>$1.65 (v1.1 measured)</td></tr>
-        <tr><td><strong>Total</strong></td><td><strong>$0.55</strong></td><td><strong>$16.55 (v1.1 measured)</strong></td></tr>
+        <tr><td>Mem-Utility (25 queries)</td><td>&mdash;</td><td>$1.39 (v1.1)</td></tr>
+        <tr><td>MultiTurn-Persona (7 sequences)</td><td>&mdash;</td><td>$2.57 (v1.1)</td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>$0.55</strong></td><td><strong>$20.51 (v1.1 measured)</strong></td></tr>
       </tbody>
     </table>
-    <p><em>Corrected total is still 6&ndash;10&times; under the $150 pre-execution budget. Actual API billing may differ slightly due to prompt caching adjustments. Underlying benchmark results (54.4% directional accuracy, 81.7% skill-inclusion, persona null) are unaffected &mdash; only cost figures changed. v1.1 re-runs with corrected tracking measured: OOS $13.13, Skill-Retention $1.65, Persona-Align $1.77 &mdash; total $16.55.</em></p>
+    <p><em>Corrected total is still 7&times; under the $150 pre-execution budget. Five benchmarks executed with full LLM cost tracking: OOS $13.13, Skill-Retention $1.65, Persona-Align $1.77, Mem-Utility $1.39, MultiTurn-Persona $2.57 &mdash; total $20.51.</em></p>
   </div>
 
 <footer>
   <span>OTM-Agent &middot; Benchmarks</span>
-  <span>Last updated: 2026-05-25 (v1.1 complete — all three benchmarks re-run)</span>
+  <span>Last updated: 2026-05-26 (v1.1 complete &mdash; five benchmarks executed)</span>
 </footer>
 
 <script>

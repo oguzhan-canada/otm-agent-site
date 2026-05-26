@@ -1,0 +1,55 @@
+{
+  "benchmark_id": "OTM-MultiTurn-Persona",
+  "version": "v1.1",
+  "run_id": "2026-05-26T03:26:33.595162+00:00",
+  "completed_at": "2026-05-26T03:26:33.595162+00:00",
+  "agent_version": "v0.2.0-oos-clean",
+  "n_samples": 7,
+  "seeds": [
+    42
+  ],
+  "metrics": {
+    "primary": {
+      "name": "convergence_delta",
+      "value": 0.173,
+      "ci_low": -0.0643,
+      "ci_high": 0.3776,
+      "n": 7
+    },
+    "secondary": [
+      {
+        "name": "mean_early_divergence",
+        "value": 0.1619
+      },
+      {
+        "name": "mean_late_divergence",
+        "value": 0.3349
+      },
+      {
+        "name": "wilcoxon_p_value",
+        "value": 0.1094
+      },
+      {
+        "name": "total_cost_usd",
+        "value": 2.5727
+      },
+      {
+        "name": "n_sequences",
+        "value": 7
+      },
+      {
+        "name": "turns_per_sequence",
+        "value": 5
+      }
+    ]
+  },
+  "baselines": [
+    {
+      "name": "no_convergence",
+      "primary_value": 0.0,
+      "description": "Zero delta \u2014 persona has no multi-turn effect"
+    }
+  ],
+  "notes": "n=7 conversation sequences, 5 turns each. Wilcoxon p=0.1094. Total cost: $2.57. Convergence delta = late divergence - early divergence.",
+  "data_filter": "5-turn sequences with persistent agent state per persona mode."
+}

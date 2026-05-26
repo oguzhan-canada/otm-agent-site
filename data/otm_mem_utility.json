@@ -1,63 +1,68 @@
 {
   "benchmark_id": "OTM-Mem-Utility",
-  "version": "v1.0",
-  "run_id": "2026-05-21T20:43:05.851742+00:00",
-  "completed_at": "2026-05-21T20:43:05.851742+00:00",
+  "version": "v1.1",
+  "run_id": "2026-05-26T02:01:43.838478+00:00",
+  "completed_at": "2026-05-26T02:01:43.838478+00:00",
   "agent_version": "v0.2.0-oos-clean",
-  "n_samples": 500,
+  "n_samples": 25,
   "seeds": [
-    42,
-    43,
-    44,
-    45,
-    46
+    42
   ],
   "metrics": {
     "primary": {
       "name": "memory_utility",
-      "value": 0.7156,
-      "ci_low": 0.6731,
-      "ci_high": 0.7586,
-      "n": 500
+      "value": -0.064,
+      "ci_low": -0.276,
+      "ci_high": 0.128,
+      "n": 25
     },
     "secondary": [
       {
         "name": "mean_score_with_memory",
-        "value": 3.7122
+        "value": 3.768
       },
       {
         "name": "mean_score_without_memory",
-        "value": 2.9967
+        "value": 3.832
+      },
+      {
+        "name": "total_cost_usd",
+        "value": 1.3862
       },
       {
         "name": "utility_factual_domain",
-        "value": 0.8001,
-        "ci_low": 0.7388,
-        "ci_high": 0.8636
+        "value": 0.14,
+        "ci_low": -0.1,
+        "ci_high": 0.32,
+        "n": 5
       },
       {
         "name": "utility_historical_comparison",
-        "value": 1.1079,
-        "ci_low": 1.0358,
-        "ci_high": 1.177
+        "value": 0.06,
+        "ci_low": -0.56,
+        "ci_high": 0.64,
+        "n": 5
       },
       {
         "name": "utility_pattern_recognition",
-        "value": 1.0057,
-        "ci_low": 0.9339,
-        "ci_high": 1.0763
+        "value": -0.38,
+        "ci_low": -0.98,
+        "ci_high": 0.12,
+        "n": 5
       },
       {
         "name": "utility_real_time",
-        "value": 0.0486,
-        "ci_low": -0.0052,
-        "ci_high": 0.1012
+        "value": -0.08,
+        "ci_low": -0.3,
+        "ci_high": 0.14,
+        "n": 5
       },
       {
         "name": "utility_reasoning",
-        "value": 0.6157,
-        "ci_low": 0.5623,
-        "ci_high": 0.6687
+        "value": -0.06,
+        "ci_low": -0.4,
+        "ci_high": 0.28,
+        "n": 5
       }
     ]
   },
@@ -65,9 +70,9 @@
     {
       "name": "no_memory",
       "primary_value": 0.0,
-      "description": "Zero utility \u2014 memory disabled"
+      "description": "Zero utility \u2014 memory has no effect"
     }
   ],
-  "notes": "Simulated LLM-as-judge scoring with category-specific memory boosts.",
-  "data_filter": "Queries synthetic; scoring simulated."
+  "notes": "Real agent calls with LLM-as-judge (Claude Haiku) blind scoring. n=25 queries across 5 categories. Total cost: $1.39.",
+  "data_filter": "Queries span 5 categories; judge order randomized per query."
 }
