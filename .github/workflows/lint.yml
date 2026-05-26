@@ -34,7 +34,7 @@ jobs:
             for f in data/*.json; do
               # Skip non-benchmark files
               basename=$(basename "$f")
-              if [[ "$basename" == "watchdog_log.json" ]] || [[ "$basename" == *"_log"* ]]; then
+              if [[ "$basename" == "watchdog_log.json" ]] || [[ "$basename" == *"_log"* ]] || [[ "$basename" == "wti_prices.json" ]]; then
                 echo "Skipping non-benchmark file: $f"
                 continue
               fi
