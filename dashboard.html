@@ -2288,12 +2288,13 @@ async function sendChat() {
   let tokenBudget = 3000;
   for (let i = chatHistory.length - 1; i >= 0 && tokenBudget > 0; i--) {
     const m = chatHistory[i];
-    const est = Math.ceil((m.content || '').length / 4); // ~4 chars per token
+    const msgText = m.text || m.content || '';  // chatHistory stores `text`, not `content`
+    const est = Math.ceil(msgText.length / 4); // ~4 chars per token
     if (est > tokenBudget) break;
     tokenBudget -= est;
     convHistory.unshift({
       role: m.role === 'user' ? 'user' : 'assistant',
-      content: m.content.slice(0, 2000), // hard cap per message
+      content: msgText.slice(0, 2000), // hard cap per message
     });
   }
 
