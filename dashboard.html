@@ -549,6 +549,8 @@
     @media(max-width:700px) { #db-explainer-grid { grid-template-columns: 1fr !important; } }
   </style>
 
+  <div id="price-stale-banner" style="display:none" class="banner-stale"></div>
+
   <div class="card" style="margin-bottom:1.5rem">
     <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:.75rem">
       <span class="card-title" style="margin-bottom:0">Oil price vs. average tank signal</span>
@@ -1090,28 +1092,62 @@ function setCorrView(view) {
   if (corrJoined.length) drawCorrChart(corrJoined);
 }
 async function fetchOilPrices(days) {
-  const sources = [
-    'https://raw.githubusercontent.com/datasets/oil-prices/main/data/wti-daily.csv',
-    'https://raw.githubusercontent.com/datasets/oil-prices/master/data/wti-daily.csv'
-  ];
-  for (const url of sources) {
-    try {
-      const resp = await fetch(url + '?_=' + Date.now(), { cache: 'no-store' });
-      if (!resp.ok) continue;
-      const text = await resp.text();
-      const lines = text.trim().split('\n').slice(1);
-      if (lines.length < 10) continue;
-      const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
-      const prices = {};
-      for (const line of lines) {
-        const [date, price] = line.split(',');
-        if (date >= cutoff && price) prices[date] = parseFloat(price);
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  let prices = {};
+  let source = 'none';
+
+  // Source 1: Self-hosted JSON (updated daily by GitHub Actions)
+  try {
+    const resp = await fetch('data/wti_prices.json?_=' + Date.now(), { cache: 'no-store' });
+    if (resp.ok) {
+      const data = await resp.json();
+      const all = data.prices || {};
+      for (const [date, price] of Object.entries(all)) {
+        if (date >= cutoff) prices[date] = price;
       }
-      Object.assign(wtiPriceCache, prices);
-      return prices;
-    } catch (e) { console.warn('Oil price fetch failed for', url, e.message); }
+      if (Object.keys(prices).length > 5) source = 'self-hosted';
+    }
+  } catch (e) { console.warn('Self-hosted WTI fetch failed:', e.message); }
+
+  // Source 2: Upstream GitHub CSV (community-maintained, may lag)
+  if (source === 'none') {
+    const csvUrls = [
+      'https://raw.githubusercontent.com/datasets/oil-prices/main/data/wti-daily.csv',
+      'https://raw.githubusercontent.com/datasets/oil-prices/master/data/wti-daily.csv'
+    ];
+    for (const url of csvUrls) {
+      try {
+        const resp = await fetch(url + '?_=' + Date.now(), { cache: 'no-store' });
+        if (!resp.ok) continue;
+        const text = await resp.text();
+        const lines = text.trim().split('\n').slice(1);
+        if (lines.length < 10) continue;
+        for (const line of lines) {
+          const [date, price] = line.split(',');
+          if (date >= cutoff && price) prices[date] = parseFloat(price);
+        }
+        if (Object.keys(prices).length > 5) { source = 'github-csv'; break; }
+      } catch (e) { console.warn('CSV fetch failed for', url, e.message); }
+    }
   }
-  return {};
+
+  // Staleness check: warn if latest price is >3 trading days old
+  const priceDates = Object.keys(prices).sort();
+  if (priceDates.length > 0) {
+    const latest = priceDates[priceDates.length - 1];
+    const ageDays = Math.floor((Date.now() - new Date(latest + 'T00:00:00Z').getTime()) / 86400000);
+    if (ageDays > 4) {
+      const banner = document.getElementById('price-stale-banner');
+      if (banner) {
+        banner.style.display = 'block';
+        banner.innerHTML = `⚠ Oil price data last updated ${latest} (${ageDays} days ago). Source: ${source}.`;
+      }
+    }
+    console.log(`WTI prices: ${priceDates.length} days loaded (latest: ${latest}, source: ${source})`);
+  }
+
+  Object.assign(wtiPriceCache, prices);
+  return prices;
 }
 function computeDailyAverages(tankHistory) {
   const byDate = {};

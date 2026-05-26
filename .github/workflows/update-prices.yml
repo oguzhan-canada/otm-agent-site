@@ -1,0 +1,40 @@
+name: Update WTI Prices
+
+on:
+  schedule:
+    - cron: "30 22 * * 1-5"  # Mon-Fri at 22:30 UTC (after US market close)
+  workflow_dispatch:          # Manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  update-prices:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fetch latest WTI prices
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python scripts/update_wti_prices.py
+
+      - name: Check for changes
+        id: diff
+        run: |
+          git diff --quiet data/wti_prices.json && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          LATEST=$(python -c "import json; print(json.load(open('data/wti_prices.json'))['latest_date'])")
+          git add data/wti_prices.json
+          git commit -m "data: update WTI prices through ${LATEST}"
+          git push
