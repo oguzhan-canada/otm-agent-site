@@ -1,6 +1,6 @@
 {
- "updated_at": "2026-07-23T01:40:24Z",
- "source": "yahoo,github_csv,fred_csv",
+ "updated_at": "2026-07-23T01:43:10Z",
+ "source": "yahoo,github_csv,fred_api",
  "latest_date": "2026-07-23",
  "latest_source": "yahoo",
  "count": 542,
@@ -546,6 +546,6 @@
   "2026-07-17": 83.43,
   "2026-07-20": 84.38,
   "2026-07-21": 84.91,
-  "2026-07-23": 88.55
+  "2026-07-23": 88.44
  }
 }
