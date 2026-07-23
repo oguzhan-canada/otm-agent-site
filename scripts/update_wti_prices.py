@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
 """Fetch WTI daily close prices and write to data/wti_prices.json.
 
-Sources tried in order:
-  1. FRED API (DCOILWTICO series) — free, no key required
-  2. datasets/oil-prices GitHub CSV — community-maintained
+Fetches from ALL available sources and merges them so the series stays
+fresh even when one source lags. Date coverage is the union of every
+source (freshest date wins). For value conflicts on the same date, the
+most authoritative EIA spot source wins; Yahoo futures are used only to
+fill the most-recent days that spot prices haven't been published for yet.
+
+Sources (ascending trust — later overrides earlier on shared dates):
+  1. Yahoo Finance CL=F  — WTI front-month futures, real-time, no key
+  2. datasets/oil-prices — community EIA spot CSV (may lag)
+  3. FRED API DCOILWTICO — EIA spot via API (needs FRED_API_KEY; can lag ~1 week)
+  4. FRED public CSV     — EIA spot via fredgraph.csv (no key, ~2-day lag)
 
 Designed to run in GitHub Actions daily or locally.
 """
@@ -11,6 +19,7 @@ import json, urllib.request, csv, io, os, sys
 from datetime import datetime, timedelta, timezone
 
 FRED_URL = "https://api.stlouisfed.org/fred/series/observations?series_id=DCOILWTICO&file_type=json&sort_order=asc&observation_start={start}"
+FRED_CSV_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DCOILWTICO&cosd={start}"
 FRED_API_KEY = os.environ.get("FRED_API_KEY", "")
 GITHUB_CSV = "https://raw.githubusercontent.com/datasets/oil-prices/main/data/wti-daily.csv"
 OUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "wti_prices.json")
@@ -27,6 +36,27 @@ def fetch_fred(start_date: str) -> dict:
     for obs in data.get("observations", []):
         if obs["value"] != ".":
             prices[obs["date"]] = round(float(obs["value"]), 2)
+    return prices
+
+
+def fetch_fred_csv(start_date: str) -> dict:
+    """Fetch WTI spot from FRED's public CSV endpoint (fredgraph.csv, no key)."""
+    url = FRED_CSV_URL.format(start=start_date)
+    req = urllib.request.Request(url, headers={"User-Agent": "OTM-Agent/1.0"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        text = resp.read().decode("utf-8")
+    prices = {}
+    reader = csv.reader(io.StringIO(text))
+    next(reader, None)  # header: observation_date,DCOILWTICO
+    for row in reader:
+        if len(row) < 2:
+            continue
+        date, val = row[0].strip(), row[1].strip()
+        if date >= start_date and val not in ("", "."):
+            try:
+                prices[date] = round(float(val), 2)
+            except ValueError:
+                pass
     return prices
 
 
@@ -70,6 +100,19 @@ def fetch_yahoo(start_date: str) -> dict:
     return prices
 
 
+# Source registry in ASCENDING trust order. On shared dates, later entries
+# override earlier ones, so authoritative EIA spot prices win over the
+# community CSV, and both win over Yahoo futures (which only fill the most
+# recent days spot hasn't published yet). The union of dates across all
+# sources gives the freshest possible coverage.
+SOURCES = [
+    ("yahoo", fetch_yahoo),           # WTI futures (CL=F) — freshest, fills leading edge
+    ("github_csv", fetch_github_csv), # EIA spot, community-maintained (may lag)
+    ("fred_api", fetch_fred),         # EIA spot via FRED API (needs key; can lag ~1 week)
+    ("fred_csv", fetch_fred_csv),     # EIA spot via FRED public CSV (no key, ~2-day lag)
+]
+
+
 def main():
     # Load existing data if present
     existing = {}
@@ -77,36 +120,50 @@ def main():
         with open(OUT_PATH) as f:
             existing = json.load(f).get("prices", {})
 
-    # Determine start date: 2 years ago or earliest missing
-    two_years_ago = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
-    start = two_years_ago
+    # Determine start date: 2 years ago
+    start = (datetime.now(timezone.utc) - timedelta(days=730)).strftime("%Y-%m-%d")
 
-    # Try FRED first, then Yahoo, then GitHub CSV
-    new_prices = {}
-    source = "none"
-    for name, fetcher in [("fred", fetch_fred), ("yahoo", fetch_yahoo), ("github_csv", fetch_github_csv)]:
+    # Fetch from every source independently; a failure in one never blocks
+    # the others (previously the first non-empty source "won", so a lagging
+    # FRED API silently kept the chart ~1 week stale).
+    results = {}
+    for name, fetcher in SOURCES:
         try:
-            new_prices = fetcher(start)
-            if new_prices:
-                source = name
-                print(f"✓ Fetched {len(new_prices)} prices from {name}")
-                break
+            prices = fetcher(start)
+            if prices:
+                results[name] = prices
+                print(f"✓ {name}: {len(prices)} prices (through {max(prices)})")
+            else:
+                print(f"✗ {name}: no data returned", file=sys.stderr)
         except Exception as e:
             print(f"✗ {name} failed: {e}", file=sys.stderr)
 
-    if not new_prices:
+    if not results:
         print("✗ All sources failed — no update", file=sys.stderr)
         sys.exit(1)
 
-    # Merge: existing + new (new wins on conflict)
-    merged = {**existing, **new_prices}
+    # Merge: existing as base, then each source in ascending trust order so
+    # the most authoritative value wins per date while keeping the full union.
+    merged = dict(existing)
+    for name, _ in SOURCES:
+        if name in results:
+            merged.update(results[name])
+
     sorted_dates = sorted(merged.keys())
     latest = sorted_dates[-1] if sorted_dates else "unknown"
 
+    # Which source supplied the latest date (highest trust wins)
+    latest_source = "existing"
+    for name, _ in reversed(SOURCES):
+        if name in results and latest in results[name]:
+            latest_source = name
+            break
+
     output = {
-        "updated_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "source": source,
+        "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "source": ",".join(results.keys()),
         "latest_date": latest,
+        "latest_source": latest_source,
         "count": len(merged),
         "prices": {d: merged[d] for d in sorted_dates}
     }
@@ -115,7 +172,13 @@ def main():
     with open(OUT_PATH, "w") as f:
         json.dump(output, f, indent=1)
 
-    print(f"✓ Wrote {len(merged)} prices to {OUT_PATH} (latest: {latest}, source: {source})")
+    # Freshness report — flag if the newest price is more than 4 days old
+    try:
+        age = (datetime.now(timezone.utc).date() - datetime.strptime(latest, "%Y-%m-%d").date()).days
+        flag = "  ⚠ STALE (>4d)" if age > 4 else ""
+        print(f"✓ Wrote {len(merged)} prices (latest: {latest} via {latest_source}, {age}d old){flag}")
+    except ValueError:
+        print(f"✓ Wrote {len(merged)} prices (latest: {latest}, source: {latest_source})")
 
 
 if __name__ == "__main__":
